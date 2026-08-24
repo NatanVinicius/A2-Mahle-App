@@ -1,0 +1,14 @@
+@layer components {
+
+  .page {
+    @apply p-6;
+  }
+
+  .page-title {
+    @apply text-3xl font-bold mb-6;
+  }
+
+  .card {
+    @apply rounded-xl border p-6 shadow-sm;
+  }
+}

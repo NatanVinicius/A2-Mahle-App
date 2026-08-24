@@ -1,0 +1,98 @@
+<Project Sdk="Microsoft.NET.Sdk.Razor">
+
+    <PropertyGroup>
+        <TargetFrameworks Condition="$([MSBuild]::IsOSPlatform('windows'))">$(TargetFrameworks);net10.0-windows10.0.19041.0</TargetFrameworks>
+
+        <!-- Note for MacCatalyst:
+            The default runtime is maccatalyst-x64, except in Release config, in which case the default is maccatalyst-x64;maccatalyst-arm64.
+            When specifying both architectures, use the plural <RuntimeIdentifiers> instead of the singular <RuntimeIdentifier>.
+            The Mac App Store will NOT accept apps with ONLY maccatalyst-arm64 indicated;
+            either BOTH runtimes must be indicated or ONLY macatalyst-x64. -->
+        <!-- For example: <RuntimeIdentifiers>maccatalyst-x64;maccatalyst-arm64</RuntimeIdentifiers> -->
+
+        <OutputType>Exe</OutputType>
+        <AssemblyName>A2-Mahle-App.Client</AssemblyName>
+    <RootNamespace>A2MahleApp.Client</RootNamespace>
+        <UseMaui>true</UseMaui>
+        <SingleProject>true</SingleProject>
+        <EnableDefaultCssItems>false</EnableDefaultCssItems>
+
+        <!-- Enable XAML source generation for faster build times and improved performance.
+             This generates C# code from XAML at compile time instead of runtime inflation.
+             To disable, remove this line.
+             For individual files, you can override by setting Inflator metadata:
+               <MauiXaml Update="MyPage.xaml" Inflator="Default" /> (reverts to defaults: Runtime for Debug, XamlC for Release)
+               <MauiXaml Update="MyPage.xaml" Inflator="Runtime" /> (force runtime inflation) -->
+
+        <!-- Display name -->
+        <ApplicationTitle>A2-Mahle-App</ApplicationTitle>
+
+        <!-- App Identifier -->
+        <ApplicationId>com.a2mahle.app</ApplicationId>
+
+        <!-- Versions -->
+        <ApplicationDisplayVersion>1.0</ApplicationDisplayVersion>
+        <ApplicationVersion>1</ApplicationVersion>
+
+        <!-- To develop, package, and publish an app to the Microsoft Store, see: https://aka.ms/MauiTemplateUnpackaged -->
+        <WindowsPackageType>None</WindowsPackageType>
+
+        <SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows'">10.0.17763.0</SupportedOSPlatformVersion>
+        <TargetPlatformMinVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows'">10.0.17763.0</TargetPlatformMinVersion>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <!-- App Icon -->
+      <MauiIcon Include="Resources\AppIcon\appicon.svg"     ForegroundFile="Resources\AppIcon\appiconfg.svg"     Color="#512BD4" />
+
+        <!-- Splash Screen -->
+
+        <!-- Images -->
+
+        <!-- Custom Fonts -->
+        <MauiFont Include="Resources\Fonts\*" />
+
+        <!-- Raw Assets (also remove the "Resources\Raw" prefix) -->
+    </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="appsettings.json" LogicalName="A2MahleApp.Client.appsettings.json" />
+  </ItemGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Microsoft.Extensions.Configuration.Binder" Version="10.0.9" />
+        <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="10.0.9" />
+        <PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="10.0.9" />
+        <PackageReference Include="Microsoft.Maui.Controls" Version="$(MauiVersion)" />
+        <PackageReference Include="Microsoft.AspNetCore.Components.WebView.Maui" Version="$(MauiVersion)" />
+        <PackageReference Include="Microsoft.Extensions.Logging.Debug" Version="10.0.0" />
+    </ItemGroup>
+
+
+    <ItemGroup>
+      <ProjectReference Include="..\A2-Mahle-App.Application\A2-Mahle-App.Application.csproj" />
+      <ProjectReference Include="..\A2-Mahle-App.Infrastructure\A2-Mahle-App.Infrastructure.csproj" />
+    </ItemGroup>
+
+
+    <ItemGroup>
+      <Folder Include="Components\Shared\" />
+      <Folder Include="Resources\Icons\" />
+      <Folder Include="Resources\Themes\" />
+    </ItemGroup>
+
+  <Target Name="CheckNode" BeforeTargets="Build">
+    <Exec Command="npm --version" />
+  </Target>
+  
+  <Target Name="CheckNodeModules" BeforeTargets="Build">
+    <Error Condition="!Exists('$(MSBuildProjectDirectory)\node_modules')" Text="As dependências do Node.js não foram instaladas. Execute 'npm install' na pasta do projeto Client." />
+  </Target>
+
+  <Target Name="BuildTailwind" BeforeTargets="Build;Publish">
+
+    <Exec WorkingDirectory="$(MSBuildProjectDirectory)" Command="npm run build:css" />
+
+  </Target>
+
+</Project>

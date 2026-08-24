@@ -1,0 +1,6 @@
+@import "tailwindcss";
+
+@import "./blazor.css";
+@import "../Themes/colors.css";
+@import "./components.css";
+@import "./utilities.css";

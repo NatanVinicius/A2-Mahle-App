@@ -1,0 +1,19 @@
+<Solution>
+  <Folder Name="/Docs/">
+    <File Path="ARCHITECTURE.md" />
+    <File Path="CONVENTIONS.md" />
+  </Folder>
+  <Folder Name="/Solution Items/">
+    <File Path=".editorconfig" />
+    <File Path="Directory.Build.props" />
+  </Folder>
+  <Folder Name="/src/">
+    <Project Path="src/A2-Mahle-App.Application/A2-Mahle-App.Application.csproj" Id="6a2c6b1a-1b4f-4c0e-9f5d-2f8d4d8e8a01" />
+    <Project Path="src/A2-Mahle-App.Client/A2-Mahle-App.Client.csproj" Id="9d8f7f3c-6b2d-4d2a-8e31-5c1a9f4b7702">
+      <Deploy Solution="Debug|*" />
+    </Project>
+    <Project Path="src/A2-Mahle-App.Domain/A2-Mahle-App.Domain.csproj" Id="e4bb1f37-02e2-49db-855d-723c0c6a0eb9" />
+    <Project Path="src/A2-Mahle-App.Infrastructure/A2-Mahle-App.Infrastructure.csproj" Id="0b93ce3d-a4ff-4ddc-8716-b01badea5053" />
+  </Folder>
+  <Folder Name="/tests/" />
+</Solution>

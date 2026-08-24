@@ -1,0 +1,6 @@
+@layer utilities {
+
+  .content-grid {
+    @apply mx-auto w-full max-w-7xl;
+  }
+}
