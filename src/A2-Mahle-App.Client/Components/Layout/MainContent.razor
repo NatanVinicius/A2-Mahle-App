@@ -1,0 +1,8 @@
+<div class="flex-1 overflow-hidden">
+    @ChildContent
+</div>
+
+@code {
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+}

@@ -9,7 +9,28 @@ namespace A2MahleApp.Client
 
     protected override Window CreateWindow(IActivationState? activationState)
     {
-      return new Window(new MainPage()) { Title = "A2-Mahle-App" };
+      Window window = new(new MainPage())
+      {
+        Title = "A2 Gestamp App"
+      };
+
+#if WINDOWS
+      window.Width = 1280;
+      window.Height = 800;
+#endif
+
+window.Destroying += async (_, _) =>
+      {
+        try
+        {
+        }
+        catch
+        {
+          // Ignora qualquer erro no encerramento.
+        }
+      };
+
+      return window;
     }
-  }
+}
 }

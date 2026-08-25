@@ -1,15 +1,30 @@
+@using A2MahleApp.Client.Components.Layout.Header
+@using A2MahleApp.Client.Components.Layout.NavMenu
+@using A2MahleApp.Client.Components.Layout.Statistics
+@using A2MahleApp.Client.Components.Shared.ComunicationTestPopup
 @inherits LayoutComponentBase
 
-<div class="layout">
+<div class="flex flex-col h-screen overflow-hidden bg-background">
 
-    <aside>
+    <Header />
+
+    <div class="flex flex-1 min-h-0 w-full overflow-hidden">
+
         <NavMenu />
-    </aside>
 
-    <main>
+        <div class="flex flex-col flex-1 min-w-0 min-h-0">
 
-        @Body
+            <MainContent>
+                @Body
+            </MainContent>
+        </div>
 
-    </main>
+    </div>
+
+    <footer class="bg-primary shrink-0 mt-4 px-6 py-2 text-white">
+        <p class="text-xs">Powered by A2 Vision Experts</p>
+    </footer>
+
+    <ComunicationTestPopup />
 
 </div>
