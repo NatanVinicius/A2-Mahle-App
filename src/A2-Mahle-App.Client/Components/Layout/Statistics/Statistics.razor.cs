@@ -2,6 +2,7 @@ using A2MahleApp.Application.Features.Inspection.Contracts;
 using A2MahleApp.Application.Features.Inspection.Services;
 using A2MahleApp.Application.Features.Production.Services;
 using A2MahleApp.Domain.Features.Inspection.Enums;
+
 using InspectionEntity = A2MahleApp.Domain.Features.Inspection.Entities.Inspection;
 
 using Microsoft.AspNetCore.Components;
@@ -39,7 +40,21 @@ public partial class Statistics : IDisposable
         _connectionState == ConnectionState.Connected ? "100%" : "0%";
 
     protected string ModeText =>
-        _connectionState == ConnectionState.Connected ? "Running" : "Stopped";
+        _connectionState switch
+        {
+            ConnectionState.Connected => "Running",
+            ConnectionState.Reconnecting => "Reconectando...",
+            ConnectionState.Connecting => "Conectando...",
+            _ => "Desconectado"
+        };
+
+    protected string ModeIndicatorCss =>
+        _connectionState switch
+        {
+            ConnectionState.Connected => "bg-green-500",
+            ConnectionState.Reconnecting or ConnectionState.Connecting => "bg-yellow-500",
+            _ => "bg-red-500"
+        };
 
     protected override void OnInitialized()
     {

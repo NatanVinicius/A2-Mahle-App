@@ -35,6 +35,14 @@ public partial class Header : IDisposable
             _ => "Desconectado"
         };
 
+    protected string ConnectionIndicatorCss =>
+        _connectionState switch
+        {
+            ConnectionState.Connected => "bg-green-500",
+            ConnectionState.Connecting or ConnectionState.Reconnecting => "bg-yellow-500",
+            _ => "bg-red-500"
+        };
+
     protected override void OnInitialized()
     {
         _connectionState = InspectionService.ConnectionState;

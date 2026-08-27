@@ -124,7 +124,7 @@
         </div>
     </div>
 
-    <div class="flex flex-col items-center justify-center gap-4 rounded-sm bg-primary px-6 py-3">
+    <div class="flex flex-col items-center justify-center gap-4 rounded-sm bg-primary px-6 py-3 min-w-45">
         <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none"
              stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
              class="lucide lucide-play-icon lucide-play text-white">
@@ -136,7 +136,7 @@
                 <p class="text-center text-md font-semibold text-white">
                     @ModeText
                 </p>
-                <div class="w-2 h-2 rounded-full @(ModeText == "Running" ? "bg-green-500" : "bg-red-500")" />
+                <div class="w-2 h-2 rounded-full @ModeIndicatorCss" />
             </div>
         </div>
     </div>

@@ -11,9 +11,12 @@ public sealed class FakeVisionSensorService : IVisionSensorService
 {
     private static readonly TimeSpan InspectionInterval = TimeSpan.FromSeconds(3);
     private static readonly TimeSpan ResultDelay = TimeSpan.FromMilliseconds(100);
+    private const int SimulatedDisconnectAfterInspections = 5;
 
     private CancellationTokenSource? _simulationCancellation;
     private Task? _simulationTask;
+    private int _inspectionsSinceConnect;
+    private bool _simulatedDisconnectTriggered;
 
     public ConnectionState ConnectionState { get; private set; } = ConnectionState.Disconnected;
 
@@ -35,6 +38,9 @@ public sealed class FakeVisionSensorService : IVisionSensorService
         await Task.Delay(TimeSpan.FromMilliseconds(300), cancellationToken);
 
         cancellationToken.ThrowIfCancellationRequested();
+
+        _inspectionsSinceConnect = 0;
+        _simulatedDisconnectTriggered = false;
 
         SetConnectionState(ConnectionState.Connected);
         StartSimulation();
@@ -123,6 +129,15 @@ public sealed class FakeVisionSensorService : IVisionSensorService
                 else
                 {
                     SimulateRejectedResult();
+                }
+
+                _inspectionsSinceConnect++;
+
+                if (!_simulatedDisconnectTriggered &&
+                    _inspectionsSinceConnect >= SimulatedDisconnectAfterInspections)
+                {
+                    _simulatedDisconnectTriggered = true;
+                    SetConnectionState(ConnectionState.Disconnected);
                 }
 
                 approved = !approved;

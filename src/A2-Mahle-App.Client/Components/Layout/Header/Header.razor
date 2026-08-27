@@ -7,10 +7,7 @@
 	<div class="flex flex-1 items-center justify-center gap-4 text-xs">
 		<div class="flex items-center justify-center gap-2">
 			<p>IV4</p>
-			<div class="h-2 w-2 rounded-full @(
-				ConnectionText == "Conectado" ? "bg-green-500" :
-				ConnectionText == "Conectando" || ConnectionText == "Reconectando" ? "bg-yellow-500" :
-				"bg-red-500")"></div>
+			<div class="h-2 w-2 rounded-full @ConnectionIndicatorCss"></div>
 			<p>@ConnectionText</p>
 		</div>
 	</div>
