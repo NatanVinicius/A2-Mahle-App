@@ -13,8 +13,8 @@
 
         <div>
             <p class="text-xs tracking-wide text-white/70 uppercase">Produzidas</p>
-            <p class="mt-2 text-center text-sm font-semibold text-white">
-                200
+            <p class="mt-2 text-center text-md font-semibold text-white">
+                @_produced
                 <span class="text-sm font-normal text-white/70">un.</span>
             </p>
         </div>
@@ -30,8 +30,8 @@
 
         <div>
             <p class="text-xs text-center tracking-wide text-white/60 uppercase">Últ. Insp.</p>
-            <p class="mt-2 text-center text-sm font-semibold text-white">
-                Aprovada
+            <p class="mt-2 text-center text-md font-semibold text-white">
+                @LastInspectionText
             </p>
         </div>
     </div>
@@ -46,8 +46,8 @@
 
         <div>
             <p class="text-xs text-center tracking-wide text-white/60 uppercase">Aprovadas</p>
-            <p class="mt-2 text-center text-sm font-semibold text-white">
-                100
+            <p class="mt-2 text-center text-md font-semibold text-white">
+                @_approved
                 <span class="text-sm font-normal text-white/70">un.</span>
             </p>
         </div>
@@ -65,8 +65,8 @@
 
         <div>
             <p class="text-xs text-center tracking-wide text-white/60 uppercase">Reprovadas</p>
-            <p class="mt-2 text-center text-sm font-semibold text-white">
-                100
+            <p class="mt-2 text-center text-md font-semibold text-white">
+                @_rejected
                 <span class="text-sm font-normal text-white/70">un.</span>
             </p>
         </div>
@@ -82,8 +82,8 @@
 
         <div>
             <p class="text-xs text-center tracking-wide text-white/60 uppercase">Índ. Rejeito</p>
-            <p class="mt-2 text-center text-sm font-semibold text-white">
-                20%
+            <p class="mt-2 text-center text-md font-semibold text-white">
+                @RejectRate
             </p>
         </div>
     </div>
@@ -98,9 +98,8 @@
 
         <div>
             <p class="text-xs text-center tracking-wide text-white/60 uppercase">Temp. Ciclo</p>
-            <p class="mt-2 text-center text-sm font-semibold text-white">
-                10
-                <span class="text-sm font-normal text-white/70">ms</span>
+            <p class="mt-2 text-center text-md font-semibold text-white">
+                @CycleTime
             </p>
         </div>
     </div>
@@ -119,8 +118,8 @@
 
         <div>
             <p class="text-xs text-center tracking-wide text-white/60 uppercase">Disponibilidade</p>
-            <p class="mt-2 text-center text-sm font-semibold text-white">
-                100%
+            <p class="mt-2 text-center text-md font-semibold text-white">
+                @Availability
             </p>
         </div>
     </div>
@@ -134,10 +133,10 @@
         <div>
             <p class="text-xs text-center tracking-wide text-white/60 uppercase">Modo</p>
             <div class="mt-2 flex gap-2 items-center justify-center">
-                <p class="text-center text-sm font-semibold text-white">
-                    Stopped
+                <p class="text-center text-md font-semibold text-white">
+                    @ModeText
                 </p>
-                <div class="w-2 h-2 rounded-full bg-red-500" />
+                <div class="w-2 h-2 rounded-full @(ModeText == "Running" ? "bg-green-500" : "bg-red-500")" />
             </div>
         </div>
     </div>

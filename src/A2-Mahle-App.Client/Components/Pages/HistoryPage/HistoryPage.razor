@@ -1,93 +1,123 @@
+@using A2MahleApp.Application.Features.History.Models
+
 @page "/history"
 
-<main class="h-full flex-1 items-center justify-center">
+<main class="flex h-full min-h-0 flex-1 flex-col pr-6">
     <div class="relative my-4 h-8 w-30 shrink-0 overflow-hidden rounded-md bg-primary">
         <span class="flex h-full items-center justify-center text-sm font-bold text-white">
             Histórico
         </span>
-
         <div class="absolute top-[-10%] right-5 h-[280%] w-1 rotate-20 bg-background"></div>
     </div>
 
-    <div class="shadow-xs mt-1 flex w-full gap-6 rounded-md p-4">
-
+    <div class="shadow-xs mt-1 flex w-full shrink-0 flex-wrap items-end gap-6 rounded-md p-4">
         <form>
-            <label for="history-date" class="text-heading mb-2.5 block text-sm font-medium">
-                Data
-            </label>
-
-            <input id="history-date" type="date"
+            <label for="history-date" class="text-heading mb-2.5 block text-sm font-medium">Data</label>
+            <input id="history-date" type="date" value="@_selectedDate.ToString("yyyy-MM-dd")" @onchange="OnDateChanged"
                    class="text-heading shadow-xs border-border bg-border block w-full rounded-md border px-3 py-2.5 text-sm outline-0 placeholder:text-body" />
         </form>
 
         <form>
-            <label for="countries" class="text-heading mb-2.5 block text-sm font-medium">Julgamento</label>
-            <select
-                class="text-heading shadow-xs border-border bg-border block w-full rounded-md border px-3 py-2.5 text-sm placeholder:text-body focus:ring-brand focus:border-brand">
-                <option>Todos</option>
-                <option>Aprovadas</option>
-                <option>Reprovadas</option>
+            <label for="history-judgment" class="text-heading mb-2.5 block text-sm font-medium">Julgamento</label>
+            <select id="history-judgment" value="@_judgment" @onchange="OnJudgmentChanged"
+                    disabled="@(_viewMode == HistoryViewMode.Production)"
+                    class="text-heading shadow-xs border-border bg-border block w-full rounded-md border px-3 py-2.5 text-sm placeholder:text-body disabled:cursor-not-allowed disabled:opacity-50">
+                <option value="All">Todos</option>
+                <option value="Approved">Aprovadas</option>
+                <option value="Rejected">Reprovadas</option>
             </select>
         </form>
 
+        <div>
+            <span class="text-heading mb-2.5 block text-sm font-medium">Visualização</span>
+            <div class="flex overflow-hidden rounded-md border border-border">
+                <button type="button" @onclick="() => OnViewModeChanged(HistoryViewMode.Production)"
+                        class="px-4 py-2.5 text-sm font-medium @( _viewMode == HistoryViewMode.Production ? "bg-primary text-white" : "bg-border text-body" )">
+                    Produção
+                </button>
+                <button type="button" @onclick="() => OnViewModeChanged(HistoryViewMode.Inspection)"
+                        class="px-4 py-2.5 text-sm font-medium @( _viewMode == HistoryViewMode.Inspection ? "bg-primary text-white" : "bg-border text-body" )">
+                    Inspeção
+                </button>
+            </div>
+        </div>
     </div>
 
-    <div class="shadow-xs relative mt-4 flex-1 overflow-x-auto rounded-md">
-        <table class="text-body w-full text-left text-sm rtl:text-right">
+    <div class="shadow-xs relative mt-4 min-h-0 flex-1 overflow-auto rounded-md">
+        @if (_loading)
+        {
+            <div class="flex h-full items-center justify-center text-sm text-body">
+                Carregando histórico...
+            </div>
+        }
+        else if (_viewMode == HistoryViewMode.Production)
+        {
+            <table class="text-body min-w-full w-full text-left text-sm rtl:text-right">
+                <thead class="sticky top-0 z-10 border-b border-white/5 bg-primary text-sm text-white">
+                    <tr>
+                        <th class="px-6 py-3 font-medium">Data</th>
+                        <th class="px-6 py-3 font-medium">Produzidas</th>
+                        <th class="px-6 py-3 font-medium">Aprovadas</th>
+                        <th class="px-6 py-3 font-medium">Reprovadas</th>
+                        <th class="px-6 py-3 font-medium">Reject Rate</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (ProductionHistoryItem production in _productions)
+                    {
+                        <tr class="border-b border-white/5 bg-border">
+                            <td class="px-6 py-4">@production.Date.ToString("dd/MM/yyyy")</td>
+                            <td class="px-6 py-4">@production.Produced</td>
+                            <td class="px-6 py-4 text-green-500">@production.Approved</td>
+                            <td class="px-6 py-4 text-red-500">@production.Rejected</td>
+                            <td class="px-6 py-4">@production.RejectRate.ToString("0.#")%</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
 
-            <thead class="text-body bg-card sticky top-0 border-b border-white/5 bg-primary text-sm text-white">
-                <tr>
-                    <th class="px-6 py-3 font-medium">Data</th>
-                    <th class="px-6 py-3 font-medium">Turno</th>
-                    <th class="px-6 py-3 font-medium">Produzidas</th>
-                    <th class="px-6 py-3 font-medium">Aprovadas</th>
-                    <th class="px-6 py-3 font-medium">Reprovadas</th>
-                    <th class="px-6 py-3 font-medium">Reject Rate</th>
-                    <th class="px-6 py-3 font-medium">Imagens</th>
-                </tr>
-            </thead>
+            @if (_productions.Count == 0)
+            {
+                <div class="p-8 text-center text-sm text-body">Nenhuma produção encontrada para a data selecionada.</div>
+            }
+        }
+        else
+        {
+            <table class="text-body min-w-full w-full text-left text-sm rtl:text-right">
+                <thead class="sticky top-0 z-10 border-b border-white/5 bg-primary text-sm text-white">
+                    <tr>
+                        <th class="px-6 py-3 font-medium">Data e hora</th>
+                        <th class="px-6 py-3 font-medium">Julgamento</th>
+                        <th class="px-6 py-3 font-medium">Tempo do ciclo</th>
+                        <th class="px-6 py-3 font-medium">Imagem</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (InspectionHistoryItem inspection in _inspections)
+                    {
+                        <tr class="border-b border-white/5 bg-border">
+                            <td class="px-6 py-4">@inspection.DateTime.ToString("dd/MM/yyyy HH:mm:ss")</td>
+                            <td class="px-6 py-4 font-medium @JudgmentCss(inspection.Status)">@JudgmentText(inspection.Status)
+                            </td>
+                            <td class="px-6 py-4">@inspection.CycleTimeMilliseconds ms</td>
+                            <td class="px-6 py-2">
+                                icon
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
 
-            <tbody>
-                <tr class="bg-border border-b border-white/5">
-
-                    <td class="px-6 py-4">
-                        1
-                    </td>
-
-                    <td class="px-6 py-4">
-                        1
-                    </td>
-
-
-                    <td class="px-6 py-4">
-                        1
-                    </td>
-
-                    <td class="px-6 py-4 text-green-500">
-                        1
-                    </td>
-
-                    <td class="px-6 py-4 text-red-500">
-                        1
-                    </td>
-
-                    <td class="px-6 py-4">
-                        1
-                    </td>
-
-                    <td class="flex px-6 py-4">
-                        <i class="fa-solid fa-image"></i>
-                    </td>
-                </tr>
-
-            </tbody>
-        </table>
+            @if (_inspections.Count == 0)
+            {
+                <div class="p-8 text-center text-sm text-body">Nenhuma inspeção encontrada para os filtros selecionados.</div>
+            }
+        }
     </div>
 
-    <div class="mt-6 flex w-full justify-end">
-        <button class="cursor-pointer rounded-lg border bg-red-500 px-8 py-2 font-semibold text-white
-            transition hover:bg-red-500/80
-            disabled:cursor-not-allowed disabled:opacity-20">
+    <div class="mt-6 flex w-full shrink-0 justify-end">
+        <button type="button" disabled
+                class="cursor-not-allowed rounded-lg border bg-red-500 px-8 py-2 font-semibold text-white opacity-20">
             Exportar PDF
         </button>
     </div>
