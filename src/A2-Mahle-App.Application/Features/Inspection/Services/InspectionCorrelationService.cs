@@ -1,4 +1,5 @@
 using A2MahleApp.Application.Features.Inspection.Models;
+
 using InspectionEntity = A2MahleApp.Domain.Features.Inspection.Entities.Inspection;
 
 namespace A2MahleApp.Application.Features.Inspection.Correlation;
@@ -33,6 +34,7 @@ public sealed class InspectionCorrelation
         {
             DateTime = DateTime.Now,
             Image = _image,
+            EvidenceImagePath = null,
             Status = _result.Status,
             CycleTimeMilliseconds = _result.CycleTimeMilliseconds
         };

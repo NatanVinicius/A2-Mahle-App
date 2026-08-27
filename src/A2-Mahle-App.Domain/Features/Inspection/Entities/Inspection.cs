@@ -10,6 +10,8 @@ public sealed class Inspection
 
     public required byte[] Image { get; set; }
 
+    public string? EvidenceImagePath { get; set; }
+
     public required InspectionStatus Status { get; set; }
 
     public int CycleTimeMilliseconds { get; set; }

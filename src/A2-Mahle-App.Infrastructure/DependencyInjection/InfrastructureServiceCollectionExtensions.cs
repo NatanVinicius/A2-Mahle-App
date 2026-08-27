@@ -37,6 +37,7 @@ public static class InfrastructureServiceCollectionExtensions
             options.UseSqlite(connectionString));
 
         services.AddSingleton<IVisionSensorService, FakeVisionSensorService>();
+        services.AddSingleton<IInspectionEvidenceStorage, InspectionEvidenceStorage>();
         services.AddSingleton<IProductionRepository, ProductionRepository>();
         services.AddSingleton<IInspectionRepository, InspectionRepository>();
         services.AddSingleton<IHistoryRepository, HistoryRepository>();

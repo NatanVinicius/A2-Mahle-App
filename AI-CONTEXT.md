@@ -28,54 +28,50 @@ The solution is divided into four projects:
 Dependency direction:
 
 Client -> Application -> Domain
-
 Infrastructure -> Application -> Domain
 
 Client must not access Infrastructure directly.
 
-Infrastructure contains implementations for external technologies and integrations.
+Folders are organized by feature.
 
-Folders are creating by features
-
-## Current Inspection Flow
+## Inspection Flow
 
 Vision Sensor
     ↓
-Image + Result
+Image + Result + Cycle Time
     ↓
 Inspection Correlation
     ↓
 Inspection
     ↓
-Inspection Service
+Application
     ↓
 Client
 
+Image, judgment and cycle time may be received separately.
+
+Correlation creates the complete Inspection only when the required data for the same inspection is available.
+
 ## Current Vision Sensor
+
+The physical Keyence IV4 hardware is currently unavailable.
 
 The application currently uses FakeVisionSensorService.
 
-The Fake simulates the behavior of the real vision sensor because the physical Keyence hardware is currently unavailable.
+The Fake simulates:
 
-The Fake:
-
-- simulates connection;
-- simulates reconnection;
-- sends an image;
-- sends the inspection result;
-- sends cycle time;
-- alternates between Approved and Rejected;
-- generates inspections every 3 seconds.
+- connection;
+- disconnection;
+- reconnection;
+- image reception;
+- result reception;
+- cycle time reception;
+- Approved and Rejected inspections;
+- inspections every 3 seconds.
 
 The future real implementation will use the Keyence IV4 SDK.
 
-## Inspection Correlation
-
-Image and inspection result are received separately.
-
-An Inspection is created only when the required data for the same inspection is available.
-
-The correlation layer is responsible for composing the complete Inspection.
+The real SDK implementation belongs in Infrastructure and must satisfy the same Application contract used by the Fake.
 
 ## Inspection
 
@@ -86,7 +82,7 @@ An Inspection contains:
 - Cycle time;
 - Image.
 
-The Client consumes completed inspections and does not access the sensor or SDK directly.
+The Client consumes completed inspections through Application and does not access the sensor or SDK directly.
 
 ## Production
 
@@ -97,11 +93,9 @@ Production contains:
 - Approved;
 - Rejected.
 
-Production state is loaded when the application starts and maintained in memory during execution.
+Production state is loaded at application startup and maintained in memory during execution.
 
-The database is updated when inspections are completed.
-
-The UI does not query SQLite for real-time inspection data.
+The database is not queried on every inspection for real-time UI updates.
 
 ## Persistence
 
@@ -130,7 +124,7 @@ Default filters:
 
 Inspection results are displayed with vertical scrolling without breaking the table layout.
 
-## Current MVP Scope
+## MVP Scope
 
 ### Included
 
@@ -148,10 +142,17 @@ Inspection results are displayed with vertical scrolling without breaking the ta
 
 - Keep the architecture simple.
 - Avoid overengineering.
-- Do not introduce unnecessary abstractions.
-- Do not create unnecessary projects.
 - Reuse existing services and contracts.
 - Keep SDK-specific code inside Infrastructure.
 - Keep persistence implementation inside Infrastructure.
 - Client must not access SQLite or EF Core directly.
 - Do not modify unrelated parts of the system.
+
+## AI Development Workflow
+
+Every Feature is handled in two phases:
+
+1. PLAN — analyze the Feature and existing code without changing files.
+2. IMPLEMENT — only after explicit user approval of the plan.
+
+The plan is the checkpoint that prevents unnecessary architecture changes and scope expansion.

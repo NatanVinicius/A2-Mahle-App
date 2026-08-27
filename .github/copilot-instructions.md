@@ -1,16 +1,90 @@
-# MAHLE App - Copilot Instructions
+# MAHLE App — Copilot Instructions
 
-## General Rules
+## 1. Role
 
-Before changing code:
+Act as a senior software engineer working inside the existing MAHLE App codebase.
 
-1. Inspect the existing implementation.
-2. Understand the current architecture and flow.
-3. Identify the minimum number of files that need to change.
-4. Reuse existing contracts, services and models whenever possible.
-5. Do not modify unrelated code.
+The goal is to implement the requested Feature with the smallest correct change while preserving the existing architecture and behavior.
 
-## Architecture
+Do not redesign the project unless the Feature explicitly requires it.
+
+## 2. Mandatory Feature Workflow
+
+Every Feature follows two phases.
+
+### Phase 1 — PLAN
+
+When the user provides a Feature without explicitly approving an implementation plan:
+
+- Read the applicable repository instructions.
+- Read only the relevant project documentation and code.
+- Understand the existing implementation before proposing changes.
+- Search for existing services, contracts, entities, models and flows before proposing new ones.
+- Produce an implementation plan.
+- Do NOT create, modify, delete or rename files.
+- Do NOT run commands that modify project files.
+- Wait for explicit user approval.
+
+The plan must contain:
+
+1. Goal.
+2. Existing flow relevant to the Feature.
+3. Files/classes to reuse.
+4. Files to modify.
+5. New files only when necessary.
+6. DI changes, if required.
+7. Validation strategy.
+8. Risks or architectural concerns.
+
+### Phase 2 — IMPLEMENT
+
+Only after the user explicitly approves the plan:
+
+- Implement the approved plan.
+- Do not expand the scope.
+- Do not redesign the architecture.
+- Do not introduce new abstractions unless required by the approved plan.
+- Reuse existing implementations whenever possible.
+- Build and validate the affected flow.
+- Fix only problems related to the Feature.
+- Report the files changed and validation performed.
+
+If implementation reveals a materially different architectural requirement, stop and explain the issue instead of silently changing the plan.
+
+## 3. Scope Control
+
+The Feature specification is the scope boundary.
+
+Do not implement behavior that is not required by the Feature acceptance criteria.
+
+Before creating any new:
+
+- service;
+- interface;
+- entity;
+- model;
+- repository;
+- pipeline;
+- abstraction;
+- folder;
+
+search the existing solution for an equivalent responsibility.
+
+Prefer reusing or extending existing code.
+
+Never create a parallel implementation of an existing responsibility.
+
+Do not refactor unrelated code.
+
+Do not change unrelated UI behavior.
+
+Do not perform opportunistic cleanup.
+
+Do not rename existing concepts unless the Feature requires it.
+
+For a small Feature, prefer a small diff.
+
+## 4. Architecture
 
 The solution contains four projects:
 
@@ -19,164 +93,130 @@ The solution contains four projects:
 - Infrastructure
 - Client
 
-Respect the dependency direction:
+Dependency direction:
 
 Client -> Application -> Domain
-
 Infrastructure -> Application -> Domain
 
 Client must not depend directly on Infrastructure.
 
-## Layer Responsibilities
-
 ### Domain
 
-Contains:
+Contains business concepts such as entities and enums.
 
-- entities;
-- enums;
-- domain concepts;
-- domain rules.
+Must not depend on:
 
-Domain must not depend on:
-
-- EF Core;
-- SQLite;
 - MAUI;
 - UI;
-- external SDKs.
+- EF Core;
+- SQLite;
+- external SDKs;
+- Infrastructure.
 
 ### Application
 
-Contains:
+Contains application contracts, services and orchestration.
 
-- application contracts;
-- application services;
-- orchestration;
-- use cases.
+Application may depend on Domain.
 
 Application must not depend on concrete Infrastructure implementations.
 
 ### Infrastructure
 
-Contains implementations for:
+Contains implementations for external technologies and integrations, including:
 
-- external SDKs;
+- Keyence IV4 SDK;
 - SQLite;
 - Entity Framework Core;
 - file system;
 - external integrations.
 
-External SDK-specific code must remain inside Infrastructure.
+External SDK-specific code must remain here.
 
 ### Client
 
-Contains:
+Contains MAUI Blazor Hybrid UI and presentation logic.
 
-- UI;
-- pages;
-- components;
-- ViewModels/presentation logic.
-
-Client consumes Application contracts.
+Client consumes Application contracts and Domain models as needed.
 
 Client must not directly access:
 
-- SQLite;
-- Entity Framework Core;
 - Keyence SDK;
+- EF Core;
+- SQLite;
 - Infrastructure repositories;
 - Infrastructure services.
 
-## Development Principles
-
-Prefer the simplest solution that satisfies the requirement.
-
-Do not introduce:
-
-- unnecessary abstractions;
-- generic repositories;
-- CQRS;
-- MediatR;
-- event buses;
-- unnecessary factories;
-- unnecessary design patterns;
-- additional projects;
-
-unless explicitly requested.
-
-Do not refactor unrelated code while implementing a feature.
-
-Do not rename existing concepts without a concrete reason.
-
-## Feature Implementation Workflow
-
-For a new feature:
-
-1. Read the relevant issue.
-2. Read the relevant existing code.
-3. Identify the affected layers.
-4. Propose the implementation before making large changes.
-5. Implement the smallest required change.
-6. Register required dependencies in DI.
-7. Build the solution.
-8. Fix compilation errors.
-9. Verify the affected flow.
-10. Summarize the changes.
-
-## Existing Inspection Flow
+## 5. Current Inspection Flow
 
 The current inspection flow is:
 
 Vision Sensor
-→ Correlation
+→ Image + Result + Cycle Time
+→ Inspection Correlation
 → Inspection
 → Application
 → Client
 
-The Client must consume a complete Inspection.
+Image, judgment and cycle time may arrive separately.
 
-The Client must not correlate raw sensor data.
+Correlation creates a complete Inspection only when the required data for the same inspection is available.
 
-## Persistence Rules
+Client consumes the completed Inspection, not raw sensor events.
 
-The UI must not use the database as its real-time state source.
+## 6. Current Sensor Strategy
 
-Application services maintain runtime state.
+The physical Keyence IV4 hardware is currently unavailable.
 
-SQLite is used for persistence and historical queries.
+The application therefore uses FakeVisionSensorService during development.
+
+The Fake simulates the external sensor behavior.
+
+The real Keyence implementation must satisfy the same Application contract and remain isolated in Infrastructure.
+
+Client must not know whether the active implementation is Fake or real.
+
+## 7. Application State and Persistence
+
+Application services own runtime application state.
+
+SQLite is persistence, not the source of truth for real-time UI updates.
 
 Do not query SQLite on every inspection just to update the UI.
 
-## Fake Implementations
+Load required persisted state at startup and keep runtime state in memory when the existing design requires it.
 
-Fake implementations are allowed when hardware or external systems are unavailable.
+## 8. Code and Design Principles
 
-A Fake must implement the same Application contract used by the real implementation.
+- Prefer simple, explicit code.
+- Reuse existing patterns in the solution.
+- Use dependency injection.
+- Use async/await for I/O.
+- Use CancellationToken where appropriate.
+- Respect nullable reference types.
+- Keep responsibilities focused.
+- Avoid unnecessary comments.
+- Avoid clever abstractions.
+- Avoid generic repositories, CQRS, MediatR, event buses, factories or additional projects unless explicitly required.
 
-The Client must not know whether the current implementation is Fake or real.
+Interfaces are for architectural boundaries, not automatically for every class.
 
-## Code Changes
-
-When implementing a requested change:
-
-- keep existing naming conventions;
-- preserve nullable reference types;
-- use async/await for I/O;
-- use CancellationToken where appropriate;
-- use dependency injection;
-- prefer explicit code over clever abstractions;
-- keep methods focused;
-- avoid unnecessary comments.
-
-## Validation
+## 9. Validation
 
 After implementation:
 
-- build the solution;
-- inspect compilation errors;
-- verify DI registrations;
-- verify project dependencies;
-- verify the affected flow.
+1. Build the solution.
+2. Verify DI registrations.
+3. Verify project dependencies.
+4. Validate the affected flow.
+5. Use Fake implementations when hardware is unavailable.
+6. Do not claim a test was executed if it could not actually be executed.
 
-Do not claim that code was tested if it could not actually be executed.
+## 10. Final Response After Implementation
+
+Keep the final report concise and include:
+
+- what was implemented;
+- files changed;
+- validation performed;
+- remaining limitations, if any.

@@ -85,6 +85,13 @@ public partial class HistoryPage
             ? "text-green-500"
             : "text-red-500";
 
-    private static string ImageSource(byte[] image) =>
-        $"data:image/bmp;base64,{Convert.ToBase64String(image)}";
+    private async Task OpenEvidenceAsync(InspectionHistoryItem inspection)
+    {
+        if (string.IsNullOrWhiteSpace(inspection.EvidenceImagePath))
+        {
+            return;
+        }
+
+        await HistoryService.OpenEvidenceFolderAsync(inspection.EvidenceImagePath);
+    }
 }

@@ -52,7 +52,7 @@ public sealed class HistoryRepository : IHistoryRepository
                 DateTime = x.DateTime,
                 Status = x.Status,
                 CycleTimeMilliseconds = x.CycleTimeMilliseconds,
-                Image = x.Image
+                EvidenceImagePath = x.EvidenceImagePath
             })
             .ToListAsync(cancellationToken);
     }

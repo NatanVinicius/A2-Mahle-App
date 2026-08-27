@@ -29,5 +29,5 @@ public sealed class InspectionHistoryItem
     public DateTime DateTime { get; init; }
     public InspectionStatus Status { get; init; }
     public int CycleTimeMilliseconds { get; init; }
-    public byte[] Image { get; init; } = [];
+    public string? EvidenceImagePath { get; init; }
 }

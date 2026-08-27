@@ -10,4 +10,6 @@ public interface IHistoryService
         DateTime date,
         HistoryJudgmentFilter judgment,
         CancellationToken cancellationToken = default);
+
+    Task OpenEvidenceFolderAsync(string evidenceImagePath, CancellationToken cancellationToken = default);
 }

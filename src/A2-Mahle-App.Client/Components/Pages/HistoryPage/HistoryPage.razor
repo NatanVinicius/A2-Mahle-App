@@ -101,7 +101,23 @@
                             </td>
                             <td class="px-6 py-4">@inspection.CycleTimeMilliseconds ms</td>
                             <td class="px-6 py-2">
-                                icon
+                                @if (inspection.Status == A2MahleApp.Domain.Features.Inspection.Enums.InspectionStatus.Rejected
+                                  && !string.IsNullOrWhiteSpace(inspection.EvidenceImagePath))
+                                {
+                                    <button type="button"
+                                            @onclick="() => OpenEvidenceAsync(inspection)"
+                                            class="inline-flex h-8 w-8 items-center justify-center rounded border border-border bg-background hover:bg-border"
+                                            title="Abrir pasta da evidência"
+                                            aria-label="Abrir pasta da evidência">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                            <path d="M3 7a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+                                        </svg>
+                                    </button>
+                                }
+                                else
+                                {
+                                    <span class="text-body/50">-</span>
+                                }
                             </td>
                         </tr>
                     }

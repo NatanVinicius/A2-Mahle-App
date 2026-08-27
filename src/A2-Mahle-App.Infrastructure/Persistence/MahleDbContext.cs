@@ -28,10 +28,11 @@ public sealed class MahleDbContext : DbContext
         modelBuilder.Entity<Inspection>(entity =>
         {
             entity.HasKey(x => x.Id);
-            entity.Property(x => x.Image).IsRequired();
+            entity.Ignore(x => x.Image);
             entity.Property(x => x.Status).HasConversion<string>().IsRequired();
             entity.Property(x => x.DateTime).IsRequired();
             entity.Property(x => x.CycleTimeMilliseconds).IsRequired();
+            entity.Property(x => x.EvidenceImagePath);
             entity.HasIndex(x => x.DateTime);
         });
     }
