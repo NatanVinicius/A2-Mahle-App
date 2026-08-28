@@ -43,7 +43,7 @@
         </div>
     </div>
 
-    <div class="shadow-xs relative mt-4 min-h-0 flex-1 overflow-auto rounded-md">
+    <div id="pdf-export-area" class="shadow-xs relative mt-4 min-h-0 flex-1 overflow-auto rounded-md">
         @if (_loading)
         {
             <div class="flex h-full items-center justify-center text-sm text-body">
@@ -68,8 +68,8 @@
                         <tr class="border-b border-white/5 bg-border">
                             <td class="px-6 py-4">@production.Date.ToString("dd/MM/yyyy")</td>
                             <td class="px-6 py-4">@production.Produced</td>
-                            <td class="px-6 py-4 text-green-500">@production.Approved</td>
-                            <td class="px-6 py-4 text-red-500">@production.Rejected</td>
+                            <td class="px-6 py-4 ">@production.Approved</td>
+                            <td class="px-6 py-4 ">@production.Rejected</td>
                             <td class="px-6 py-4">@production.RejectRate.ToString("0.#")%</td>
                         </tr>
                     }
@@ -79,6 +79,70 @@
             @if (_productions.Count == 0)
             {
                 <div class="p-8 text-center text-sm text-body">Nenhuma produção encontrada para a data selecionada.</div>
+            }
+            else
+            {
+                <div id="history-chart-export" class="bg-border mt-0 flex w-full items-center justify-center gap-15">
+
+                    <div class="flex ">
+                        <div class="flex flex-col items-start justify-center gap-4">
+                            <div class="flex items-center gap-2">
+                                <span class="h-3 w-3 rounded-full bg-green-500"></span>
+
+                                <span class="text-body text-sm">
+                                    Aprovadas:
+                                    <strong>
+                                        @_productions[0].Approved
+                                    </strong>
+                                </span>
+                            </div>
+
+                            <div class="flex items-center gap-1">
+                                <span class="h-3 w-3 rounded-full bg-red-500"></span>
+
+                                <span class="text-body text-sm">
+                                    Reprovadas:
+                                    <strong>
+                                        @_productions[0].Rejected
+                                    </strong>
+                                </span>
+                            </div>
+                        </div>
+
+                        <div class="flex justify-center">
+                            <div id="production-chart" class="w-full">
+                            </div>
+                        </div>
+
+                    </div>
+
+                    <div class="flex">
+                        <div class="flex flex-col items-start justify-center gap-4">
+                            <div class="flex items-center gap-2">
+                                <span class="h-3 w-3 rounded-full bg-[#b5b5b5]"></span>
+
+                                <span class="text-body text-sm">
+                                    Sem rejeito:
+                                    <strong>
+                                        @((100 - _productions[0].RejectRate).ToString("0.#"))%
+                                    </strong>
+                                </span>
+                            </div>
+
+                            <div class="flex items-center gap-2">
+                                <span class="h-3 w-3 rounded-full bg-[#ff6905]"></span>
+
+                                <span class="text-body text-sm">
+                                    Rejeito
+                                </span>
+                            </div>
+                        </div>
+
+                        <div class="flex justify-center">
+                            <div id="reject-rate-chart"></div>
+                        </div>
+                    </div>
+                </div>
             }
         }
         else
@@ -104,12 +168,12 @@
                                 @if (inspection.Status == A2MahleApp.Domain.Features.Inspection.Enums.InspectionStatus.Rejected
                                   && !string.IsNullOrWhiteSpace(inspection.EvidenceImagePath))
                                 {
-                                    <button type="button"
-                                            @onclick="() => OpenEvidenceAsync(inspection)"
+                                    <button type="button" @onclick="() => OpenEvidenceAsync(inspection)"
                                             class="inline-flex h-8 w-8 items-center justify-center rounded border border-border bg-background hover:bg-border"
-                                            title="Abrir pasta da evidência"
-                                            aria-label="Abrir pasta da evidência">
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                            title="Abrir pasta da evidência" aria-label="Abrir pasta da evidência">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
+                                             fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                             stroke-linejoin="round">
                                             <path d="M3 7a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
                                         </svg>
                                     </button>
@@ -132,8 +196,8 @@
     </div>
 
     <div class="mt-6 flex w-full shrink-0 justify-end">
-        <button type="button" disabled
-                class="cursor-not-allowed rounded-lg border bg-red-500 px-8 py-2 font-semibold text-white opacity-20">
+        <button type="button" @onclick="OnExportPdfClick" disabled="@_isExportingPdf"
+                class=" rounded-lg border bg-red-500 px-8 py-2 font-semibold text-white cursor-pointer">
             Exportar PDF
         </button>
     </div>

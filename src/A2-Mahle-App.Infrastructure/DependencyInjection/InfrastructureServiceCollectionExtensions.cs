@@ -1,6 +1,8 @@
+using A2MahleApp.Application.Features.Export;
 using A2MahleApp.Application.Features.History.Services;
 using A2MahleApp.Application.Features.Inspection.Services;
 using A2MahleApp.Application.Features.Production.Services;
+using A2MahleApp.Infrastructure.Features.Export;
 using A2MahleApp.Infrastructure.Features.History.Repositories;
 using A2MahleApp.Infrastructure.Features.Inspection.Repositories;
 using A2MahleApp.Infrastructure.Features.Inspection.Services;
@@ -41,6 +43,7 @@ public static class InfrastructureServiceCollectionExtensions
         services.AddSingleton<IProductionRepository, ProductionRepository>();
         services.AddSingleton<IInspectionRepository, InspectionRepository>();
         services.AddSingleton<IHistoryRepository, HistoryRepository>();
+        services.AddSingleton<IHistoryExportPdfService, HistoryPdfExportService>();
 
         return services;
     }
