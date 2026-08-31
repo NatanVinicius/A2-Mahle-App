@@ -1,32 +1,95 @@
-window.captureElementAsBase64 = async function (elementId) {
-  const element = document.getElementById(elementId);
-
-  if (!element) {
-    throw new Error(`Element not found: ${elementId}`);
-  }
-
-  if (!window.html2canvas) {
-    throw new Error("html2canvas is not loaded.");
-  }
-
-  const canvas = await window.html2canvas(element, {
-    backgroundColor: "#ffffff",
-    scale: 2,
-    useCORS: true,
-    allowTaint: false,
-    logging: false,
-    scrollX: 0,
-    scrollY: 0,
-    width: element.scrollWidth,
-    height: element.scrollHeight
-  });
-
-  return canvas.toDataURL("image/png");
-};
-
 window.historyChart = {
   productionChart: null,
   rejectRateChart: null,
+
+  getExportHtml: async function (elementId) {
+    const element = document.getElementById(elementId);
+
+    if (!element) {
+      throw new Error(`Element not found: ${elementId}`);
+    }
+
+    const clone = element.cloneNode(true);
+
+    clone.classList.add("pdf-export-mode");
+
+    clone.querySelectorAll(".apexcharts-tooltip, .apexcharts-xaxistooltip, .apexcharts-yaxistooltip, .apexcharts-toolbar, .apexcharts-legend").forEach((node) => {
+      node.remove();
+    });
+
+    await window.historyChart.tryReplaceChartWithImage(clone, "production-chart", 250);
+    await window.historyChart.tryReplaceChartWithImage(clone, "reject-rate-chart", 250);
+
+    return clone.outerHTML;
+  },
+
+  tryReplaceChartWithImage: async function (cloneRoot, chartId, width) {
+    try {
+      await window.historyChart.replaceChartWithImage(cloneRoot, chartId, width);
+    } catch (error) {
+      console.warn(`HistoryChart: failed to rasterize ${chartId} for PDF export.`, error);
+    }
+  },
+
+  replaceChartWithImage: async function (cloneRoot, chartId, width) {
+    const liveChartElement = document.getElementById(chartId);
+    const clonedChartElement = cloneRoot.querySelector(`#${chartId}`);
+
+    if (!liveChartElement || !clonedChartElement) {
+      return;
+    }
+
+    const liveSvg = liveChartElement.querySelector("svg");
+    if (!liveSvg) {
+      return;
+    }
+
+    const imageDataUrl = window.historyChart.svgToDataUrl(liveSvg);
+    if (!imageDataUrl) {
+      return;
+    }
+
+    clonedChartElement.innerHTML = "";
+    clonedChartElement.className = "pdf-chart-image-container";
+
+    const image = document.createElement("img");
+    image.src = imageDataUrl;
+    image.alt = chartId;
+    image.width = width;
+    image.height = width;
+    image.className = "pdf-chart-image";
+
+    clonedChartElement.appendChild(image);
+  },
+
+  svgToDataUrl: function (svgElement) {
+    const clonedSvg = svgElement.cloneNode(true);
+    const viewBox = clonedSvg.getAttribute("viewBox");
+    const width = Number(clonedSvg.getAttribute("width")) || (viewBox ? Number(viewBox.split(" ")[2]) : 0) || 320;
+    const height = Number(clonedSvg.getAttribute("height")) || (viewBox ? Number(viewBox.split(" ")[3]) : 0) || 260;
+
+    clonedSvg.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+    clonedSvg.setAttribute("width", String(width));
+    clonedSvg.setAttribute("height", String(height));
+    clonedSvg.setAttribute("preserveAspectRatio", "xMidYMid meet");
+
+    clonedSvg.querySelectorAll("script, foreignObject").forEach((node) => {
+      node.remove();
+    });
+
+    clonedSvg.querySelectorAll(
+      ".apexcharts-tooltip, .apexcharts-toolbar, .apexcharts-legend, .apexcharts-grid, .apexcharts-xaxis, .apexcharts-yaxis, .apexcharts-series-markers"
+    ).forEach((node) => {
+      node.remove();
+    });
+
+    clonedSvg.querySelectorAll("line").forEach((node) => {
+      node.remove();
+    });
+
+    const svgMarkup = new XMLSerializer().serializeToString(clonedSvg);
+    return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svgMarkup)}`;
+  },
 
   render: function (elementId, approved, rejected, rejectRate) {
     const element = document.getElementById(elementId);

@@ -1,363 +1,369 @@
-﻿using A2MahleApp.Application.Features.Export;
-using A2MahleApp.Application.Features.History.Models;
-using A2MahleApp.Domain.Features.Inspection.Enums;
+﻿using System.Diagnostics;
+using System.Text;
 
-using QuestPDF.Fluent;
-using QuestPDF.Helpers;
-using QuestPDF.Infrastructure;
+using A2MahleApp.Application.Features.Export;
 
 namespace A2MahleApp.Infrastructure.Features.Export;
 
 public sealed class HistoryPdfExportService : IHistoryExportPdfService
 {
-    private const string ApprovedColor = "#22c55e";
-    private const string RejectedColor = "#ef4444";
-    private const string NoRejectColor = "#b0b0b0";
-    private const string RejectRateColor = "#ff6a00";
-    private const float PageMargin = 20f;
+    private const string ClientProjectFileName = "A2-Mahle-App.Client.csproj";
+    private static readonly string PuppeteerScriptRelativePath = Path.Combine("PdfExport", "render-history-pdf.cjs");
+    private static readonly string AppStylesheetRelativePath = Path.Combine("wwwroot", "app.css");
+    private static readonly string LogoRelativePath = Path.Combine("Features", "Export", "Assets", "mahle-logo.jpg");
 
     public async Task<byte[]> ExportProductionsAsync(
-        ProductionHistoryItem? production,
-        DateTime? date,
-        byte[]? reportImage = null)
+        string htmlContent,
+        CancellationToken cancellationToken = default)
     {
-        QuestPDF.Settings.License = LicenseType.Community;
-
-        byte[]? logoBytes = LoadLogoBytes();
-
-        return await Task.Run(() =>
-        {
-            return Document.Create(document =>
-            {
-                document.Page(page =>
-                {
-                    page.Size(PageSizes.A4);
-                    page.Margin(PageMargin);
-                    page.DefaultTextStyle(text => text.FontSize(10));
-
-                    page.Header().Column(column =>
-                    {
-                        if (logoBytes is not null)
-                        {
-                            column.Item().Width(120).Image(logoBytes);
-                        }
-
-                        column.Item().PaddingTop(10).AlignCenter().Text("RELATÓRIO DE PRODUÇÃO").Bold().FontSize(18);
-                        column.Item().PaddingTop(15).Text($"Data: {(date is null ? "Todas" : date.Value.ToString("dd/MM/yyyy"))}");
-                        column.Item().PaddingTop(10).LineHorizontal(1).LineColor(Colors.Grey.Lighten2);
-                    });
-
-                    page.Content().PaddingTop(30).Column(column =>
-                    {
-                        BuildProductionTable(column, production);
-
-                        if (reportImage is { Length: > 0 })
-                        {
-                            column.Item().PaddingTop(20).AlignCenter().Width(520).Image(reportImage);
-                        }
-
-                        if (production is not null)
-                        {
-                            int approved = Math.Max(0, production.Approved);
-                            int rejected = Math.Max(0, production.Rejected);
-                            int total = approved + rejected;
-
-                            if (total > 0 && reportImage is null)
-                            {
-                                BuildProductionCharts(column, production);
-                            }
-                        }
-                    });
-
-                    page.Footer().Column(column =>
-                    {
-                        column.Item().LineHorizontal(0.5f).LineColor(Colors.Grey.Lighten2);
-                        column.Item().PaddingTop(6).AlignCenter().Text("A2 Vision Experts").FontSize(9).FontColor(Colors.Grey.Medium);
-                    });
-                });
-            }).GeneratePdf();
-        });
+        return await ExportHtmlAsync(htmlContent, "Histórico de Produção", cancellationToken);
     }
 
     public async Task<byte[]> ExportInspectionsAsync(
-        IReadOnlyCollection<InspectionHistoryItem> inspections,
-        DateTime? date,
-        byte[]? reportImage = null)
+        string htmlContent,
+        CancellationToken cancellationToken = default)
     {
-        QuestPDF.Settings.License = LicenseType.Community;
-
-        byte[]? logoBytes = LoadLogoBytes();
-
-        return await Task.Run(() =>
-        {
-            return Document.Create(document =>
-            {
-                document.Page(page =>
-                {
-                    page.Size(PageSizes.A4);
-                    page.Margin(PageMargin);
-                    page.DefaultTextStyle(text => text.FontSize(10));
-
-                    page.Header().Column(column =>
-                    {
-                        if (logoBytes is not null)
-                        {
-                            column.Item().Width(120).Image(logoBytes);
-                        }
-
-                        column.Item().PaddingTop(10).AlignCenter().Text("RELATÓRIO DE INSPEÇÕES").Bold().FontSize(18);
-                        column.Item().PaddingTop(15).Text($"Data: {(date is null ? "Todas" : date.Value.ToString("dd/MM/yyyy"))}");
-                        column.Item().PaddingTop(10).LineHorizontal(1).LineColor(Colors.Grey.Lighten2);
-                    });
-
-                    page.Content().PaddingTop(30).Column(column =>
-                    {
-                        column.Item().Table(table =>
-                        {
-                            table.ColumnsDefinition(columns =>
-                            {
-                                columns.RelativeColumn(2);
-                                columns.RelativeColumn();
-                                columns.RelativeColumn();
-                                columns.RelativeColumn();
-                            });
-
-                            table.Header(header =>
-                            {
-                                header.Cell().Element(HeaderCell).Text("Data/Hora").Bold();
-                                header.Cell().Element(HeaderCell).Text("Julgamento").Bold();
-                                header.Cell().Element(HeaderCell).AlignRight().Text("Ciclo").Bold();
-                                header.Cell().Element(HeaderCell).AlignCenter().Text("Imagens").Bold();
-                            });
-
-                            if (inspections.Count == 0)
-                            {
-                                table.Cell().ColumnSpan(4).Element(DataCell).AlignCenter().Text("Nenhuma inspeção encontrada");
-                            }
-                            else
-                            {
-                                foreach (InspectionHistoryItem inspection in inspections)
-                                {
-                                    table.Cell().Element(DataCell).Text(inspection.DateTime.ToString("dd/MM/yyyy HH:mm:ss"));
-                                    table.Cell().Element(DataCell).Text(GetJudgmentText(inspection.Status));
-                                    table.Cell().Element(DataCell).AlignRight().Text(GetCycleTimeText(inspection.CycleTimeMilliseconds));
-                                    table.Cell().Element(DataCell).AlignCenter().Text(string.IsNullOrWhiteSpace(inspection.EvidenceImagePath) ? "—" : "Sim");
-                                }
-                            }
-                        });
-
-                        if (reportImage is { Length: > 0 })
-                        {
-                            column.Item().PaddingTop(20).AlignCenter().Width(520).Image(reportImage);
-                        }
-                    });
-
-                    page.Footer().Column(column =>
-                    {
-                        column.Item().LineHorizontal(0.5f).LineColor(Colors.Grey.Lighten2);
-                        column.Item().PaddingTop(6).AlignCenter().Text("A2 Vision Experts").FontSize(9).FontColor(Colors.Grey.Medium);
-                    });
-                });
-            }).GeneratePdf();
-        });
+        return await ExportHtmlAsync(htmlContent, "Histórico de Inspeções", cancellationToken);
     }
 
-    private static byte[]? LoadLogoBytes()
+    private static async Task<byte[]> ExportHtmlAsync(
+        string htmlContent,
+        string documentTitle,
+        CancellationToken cancellationToken)
     {
-        const string resourceName = "A2MahleApp.Infrastructure.Features.Export.Assets.history-logo.png";
-
-        using Stream? stream = typeof(HistoryPdfExportService).Assembly.GetManifestResourceStream(resourceName);
-        if (stream is null)
+        if (string.IsNullOrWhiteSpace(htmlContent))
         {
-            return null;
+            throw new ArgumentException("O conteúdo HTML do relatório não pode ser vazio.", nameof(htmlContent));
         }
 
-        using MemoryStream memory = new();
-        stream.CopyTo(memory);
-        return memory.ToArray();
-    }
+        string clientProjectDirectory = GetClientProjectDirectory();
+        string stylesheetPath = Path.Combine(clientProjectDirectory, AppStylesheetRelativePath);
+        string puppeteerScriptPath = Path.Combine(clientProjectDirectory, PuppeteerScriptRelativePath);
+        string puppeteerPackageDirectory = Path.Combine(clientProjectDirectory, "node_modules", "puppeteer");
+        string infrastructureProjectDirectory = GetInfrastructureProjectDirectory(clientProjectDirectory);
+        string logoPath = Path.Combine(infrastructureProjectDirectory, LogoRelativePath);
 
-    private static void BuildProductionTable(ColumnDescriptor column, ProductionHistoryItem? production)
-    {
-        column.Item().Table(table =>
+        if (!File.Exists(stylesheetPath))
         {
-            table.ColumnsDefinition(columns =>
-            {
-                columns.RelativeColumn();
-                columns.RelativeColumn();
-                columns.RelativeColumn();
-                columns.RelativeColumn();
-                columns.RelativeColumn();
-            });
+            throw new FileNotFoundException("O arquivo de estilos da interface não foi encontrado para a exportação do PDF.", stylesheetPath);
+        }
 
-            table.Header(header =>
-            {
-                header.Cell().Element(HeaderCell).Text("Data").Bold();
-                header.Cell().Element(HeaderCell).AlignRight().Text("Produzidas").Bold();
-                header.Cell().Element(HeaderCell).AlignRight().Text("Aprovadas").Bold();
-                header.Cell().Element(HeaderCell).AlignRight().Text("Reprovadas").Bold();
-                header.Cell().Element(HeaderCell).AlignRight().Text("Taxa de Rejeito").Bold();
-            });
+        if (!File.Exists(puppeteerScriptPath))
+        {
+            throw new FileNotFoundException("O script do Puppeteer para exportação do PDF não foi encontrado.", puppeteerScriptPath);
+        }
 
-            if (production is null)
+        if (!Directory.Exists(puppeteerPackageDirectory))
+        {
+            throw new InvalidOperationException("A dependência 'puppeteer' não foi encontrada. Execute 'npm install' no projeto Client.");
+        }
+
+        if (!File.Exists(logoPath))
+        {
+            throw new FileNotFoundException("O arquivo da logo do relatório não foi encontrado para a exportação do PDF.", logoPath);
+        }
+
+        string tempDirectory = Path.Combine(Path.GetTempPath(), "A2MahleApp", "PdfExport", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(tempDirectory);
+
+        string inputHtmlPath = Path.Combine(tempDirectory, "history-export.html");
+        string outputPdfPath = Path.Combine(tempDirectory, "history-export.pdf");
+
+        try
+        {
+            string documentHtml = BuildHtmlDocument(htmlContent, documentTitle, stylesheetPath, logoPath);
+            await File.WriteAllTextAsync(inputHtmlPath, documentHtml, Encoding.UTF8, cancellationToken);
+
+            ProcessStartInfo startInfo = new()
             {
-                table.Cell().ColumnSpan(5).Element(DataCell).AlignCenter().Text("Nenhum dado encontrado");
-                return;
+                FileName = "node",
+                Arguments = $"\"{puppeteerScriptPath}\" \"{inputHtmlPath}\" \"{outputPdfPath}\"",
+                WorkingDirectory = clientProjectDirectory,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                UseShellExecute = false,
+                CreateNoWindow = true
+            };
+
+            using Process process = new()
+            {
+                StartInfo = startInfo
+            };
+
+            try
+            {
+                process.Start();
+            }
+            catch (Exception exception) when (exception is InvalidOperationException or System.ComponentModel.Win32Exception)
+            {
+                throw new InvalidOperationException("Não foi possível iniciar o Node.js para gerar o PDF. Verifique se o Node.js está instalado e disponível no PATH.", exception);
             }
 
-            table.Cell().Element(DataCell).Text(production.Date.ToString("dd/MM/yyyy"));
-            table.Cell().Element(DataCell).AlignRight().Text(production.Produced.ToString());
-            table.Cell().Element(DataCell).AlignRight().Text(production.Approved.ToString());
-            table.Cell().Element(DataCell).AlignRight().Text(production.Rejected.ToString());
-            table.Cell().Element(DataCell).AlignRight().Text($"{production.RejectRate:F2}%");
-        });
+            string standardOutput = await process.StandardOutput.ReadToEndAsync(cancellationToken);
+            string standardError = await process.StandardError.ReadToEndAsync(cancellationToken);
+
+            await process.WaitForExitAsync(cancellationToken);
+
+            if (process.ExitCode != 0)
+            {
+                string processMessage = string.IsNullOrWhiteSpace(standardError)
+                    ? standardOutput
+                    : standardError;
+
+                throw new InvalidOperationException($"Falha ao gerar o PDF com Puppeteer: {processMessage}".Trim());
+            }
+
+            if (!File.Exists(outputPdfPath))
+            {
+                throw new FileNotFoundException("O Puppeteer não gerou o arquivo PDF esperado.", outputPdfPath);
+            }
+
+            return await File.ReadAllBytesAsync(outputPdfPath, cancellationToken);
+        }
+        finally
+        {
+            if (Directory.Exists(tempDirectory))
+            {
+                Directory.Delete(tempDirectory, recursive: true);
+            }
+        }
     }
 
-    private static void BuildProductionCharts(ColumnDescriptor column, ProductionHistoryItem production)
+    private static string BuildHtmlDocument(
+        string exportHtml,
+        string documentTitle,
+        string stylesheetPath,
+        string logoPath)
     {
-        int approved = Math.Max(0, production.Approved);
-        int rejected = Math.Max(0, production.Rejected);
-        int total = approved + rejected;
+        string stylesheetUri = new Uri(stylesheetPath).AbsoluteUri;
+        string logoUri = new Uri(logoPath).AbsoluteUri;
 
-        if (total <= 0)
+        return $$"""
+                 <!DOCTYPE html>
+                 <html lang="pt-BR">
+                 <head>
+                     <meta charset="utf-8" />
+                     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+                     <title>{{documentTitle}}</title>
+                     <link rel="stylesheet" href="{{stylesheetUri}}" />
+                     <style>
+                         @page {
+                             size: A4;
+                             margin: 2mm;
+                         }
+
+                         html,
+                         body {
+                             margin: 0;
+                             padding: 0;
+                             background: #ffffff;
+                             height: 100%;
+                         }
+
+                         body {
+                             color: #111827;
+                             box-sizing: border-box;
+                         }
+
+                         .pdf-page {
+                             height: 100%;
+                             display: flex;
+                             flex-direction: column;
+                             box-sizing: border-box;
+                             overflow: hidden;
+                         }
+
+                         .pdf-header {
+                             display: flex;
+                             align-items: flex-start;
+                             justify-content: space-between;
+                             gap: 16px;
+                             padding: 20px;
+                         }
+
+                         .pdf-header__logo {
+                             width: 148px;
+                             height: auto;
+                             display: block;
+                             object-fit: contain;
+                         }
+
+                         .pdf-header__title {
+                             flex: 1;
+                             margin: 0;
+                             text-align: center;
+                             font-size: 24px;
+                             font-weight: 700;
+                             line-height: 1.2;
+                             padding-top: 60px;
+                             padding-right: 148px;
+                         }
+
+                         .pdf-content {
+                             flex: 1;
+                             min-height: 0;
+                             padding-left: 20px;
+                             padding-right: 20px;
+                         }
+
+                         #pdf-export-area {
+                             overflow: visible !important;
+                             min-height: auto !important;
+                             height: auto !important;
+                             flex: none !important;
+                             box-shadow: none !important;
+                             margin-top: 0 !important;
+                             padding-right: 6px;
+                         }
+
+                         #pdf-export-area table {
+                             width: 100% !important;
+                             border-collapse: collapse;
+                             table-layout: fixed;
+                             margin-top: 50px;
+                         }
+
+                         #pdf-export-area thead {
+                             position: static !important;
+                         }
+
+                         #pdf-export-area th,
+                         #pdf-export-area td {
+                             white-space: nowrap;
+                             overflow: visible;
+                         }
+
+                         #history-chart-export {
+                             margin-top: 40px !important;
+                             margin-left: 10px;
+                             display: flex !important;
+                             align-items: flex-start !important;
+                             justify-content: center !important;
+                             gap: 26px !important;
+                             flex-wrap: nowrap !important;
+                         }
+
+                         #history-chart-export > div {
+                             display: flex !important;
+                             align-items: center !important;
+                             justify-content: center !important;
+                             gap: 14px !important;
+                             min-width: 0;
+                             flex: 1 1 0;
+                         }
+
+                         #history-chart-export .text-body.text-sm {
+                             font-size: 12px !important;
+                             line-height: 1.35 !important;
+                             white-space: nowrap !important;
+                         }
+
+                         #history-chart-export .pdf-chart-image-container,
+                         #history-chart-export #production-chart,
+                         #history-chart-export #reject-rate-chart {
+                             display: flex !important;
+                             align-items: center !important;
+                             justify-content: center !important;
+                             min-width: 250px !important;
+                             width: 250px !important;
+                             overflow: hidden !important;
+                             border: 0 !important;
+                             outline: 0 !important;
+                             box-shadow: none !important;
+                             background: transparent !important;
+                         }
+
+                         #history-chart-export .pdf-chart-image {
+                             display: block;
+                             width: 250px;
+                             height: auto;
+                             border: 0 !important;
+                             outline: 0 !important;
+                             box-shadow: none !important;
+                             background: transparent !important;
+                             object-fit: contain;
+                         }
+
+                         #history-chart-export .apexcharts-canvas,
+                         #history-chart-export .apexcharts-svg {
+                             overflow: visible !important;
+                         }
+
+                         .pdf-footer {
+                             padding-top: 10px;
+                             padding-bottom: 10px;
+                             break-inside: avoid;
+                             page-break-inside: avoid;
+                         }
+
+                         .pdf-footer__line {
+                             height: 1px;
+                             width: 100%;
+                             margin-left: 0;
+                             background: #d1d5db;
+                         }
+
+                         .pdf-footer__text {
+                             margin-top: 16px;
+                             text-align: center;
+                             font-size: 12px;
+                             color: #6b7280;
+                         }
+                     </style>
+                 </head>
+                 <body>
+                     <div class="pdf-page">
+                         <header class="pdf-header">
+                             <img class="pdf-header__logo" src="{{logoUri}}" alt="A2 Vision Experts" />
+                             <h1 class="pdf-header__title">{{documentTitle}}</h1>
+                         </header>
+                         <main class="pdf-content">
+                             {{exportHtml}}
+                         </main>
+                         <footer class="pdf-footer">
+                             <div class="pdf-footer__line"></div>
+                             <div class="pdf-footer__text">A2 Vision Experts</div>
+                         </footer>
+                     </div>
+                 </body>
+                 </html>
+                 """;
+    }
+
+    private static string GetClientProjectDirectory()
+    {
+        DirectoryInfo? currentDirectory = new(AppContext.BaseDirectory);
+
+        while (currentDirectory is not null)
         {
-            return;
+            string projectFilePath = Path.Combine(currentDirectory.FullName, ClientProjectFileName);
+            if (File.Exists(projectFilePath))
+            {
+                return currentDirectory.FullName;
+            }
+
+            currentDirectory = currentDirectory.Parent;
         }
 
-        double approvedPercentage = (double)approved / total * 100.0;
-        double rejectedPercentage = (double)rejected / total * 100.0;
-        double rejectRate = Math.Clamp(Convert.ToDouble(production.RejectRate), 0.0, 100.0);
-        double noRejectRate = 100.0 - rejectRate;
+        throw new DirectoryNotFoundException("Não foi possível localizar o diretório do projeto Client para gerar o PDF.");
+    }
 
-        string productionDonutSvg = CreateProductionDonutSvg(180, 180, approvedPercentage, rejectedPercentage);
-        string rejectRateDonutSvg = CreateRejectRateDonutSvg(180, 180, rejectRate, noRejectRate);
-
-        column.Item().PaddingTop(35).Row(row =>
+    private static string GetInfrastructureProjectDirectory(string clientProjectDirectory)
+    {
+        string? srcDirectory = Directory.GetParent(clientProjectDirectory)?.FullName;
+        if (string.IsNullOrWhiteSpace(srcDirectory))
         {
-            row.RelativeItem().Column(chartColumn =>
-            {
-                chartColumn.Item().AlignCenter().Row(chartRow =>
-                {
-                    chartRow.ConstantItem(90).AlignMiddle().Column(legend =>
-                    {
-                        legend.Item().Row(legendRow =>
-                        {
-                            legendRow.ConstantItem(8).Height(8).Background(ApprovedColor);
-                            legendRow.RelativeItem().PaddingLeft(6).Text($"Aprovadas: {approved}").FontSize(8);
-                        });
-
-                        legend.Item().PaddingTop(10).Row(legendRow =>
-                        {
-                            legendRow.ConstantItem(8).Height(8).Background(RejectedColor);
-                            legendRow.RelativeItem().PaddingLeft(6).Text($"Reprovadas: {rejected}").FontSize(8);
-                        });
-                    });
-
-                    chartRow.ConstantItem(180).Height(180).Layers(layers =>
-                    {
-                        layers.PrimaryLayer().Svg(productionDonutSvg);
-                        layers.Layer().AlignCenter().AlignMiddle().Column(center =>
-                        {
-                            center.Item().AlignCenter().Text("Produção").FontSize(9).FontColor(Colors.Grey.Darken1);
-                            center.Item().AlignCenter().Text(total.ToString()).Bold().FontSize(20);
-                        });
-                    });
-                });
-            });
-
-            row.RelativeItem().Column(chartColumn =>
-            {
-                chartColumn.Item().AlignCenter().Row(chartRow =>
-                {
-                    chartRow.ConstantItem(90).AlignMiddle().Column(legend =>
-                    {
-                        legend.Item().Row(legendRow =>
-                        {
-                            legendRow.ConstantItem(8).Height(8).Background(NoRejectColor);
-                            legendRow.RelativeItem().PaddingLeft(6).Text($"Sem rejeito: {noRejectRate:F1}%").FontSize(8);
-                        });
-
-                        legend.Item().PaddingTop(10).Row(legendRow =>
-                        {
-                            legendRow.ConstantItem(8).Height(8).Background(RejectRateColor);
-                            legendRow.RelativeItem().PaddingLeft(6).Text($"Rejeito: {rejectRate:F1}%").FontSize(8);
-                        });
-                    });
-
-                    chartRow.ConstantItem(180).Height(180).Layers(layers =>
-                    {
-                        layers.PrimaryLayer().Svg(rejectRateDonutSvg);
-                        layers.Layer().AlignCenter().AlignMiddle().Column(center =>
-                        {
-                            center.Item().AlignCenter().Text("Taxa de Rejeito").FontSize(9).FontColor(Colors.Grey.Darken1);
-                            center.Item().AlignCenter().Text($"{rejectRate:F1}%").Bold().FontSize(20);
-                        });
-                    });
-                });
-            });
-        });
-    }
-
-    private static string CreateProductionDonutSvg(double width, double height, double approvedPercentage, double rejectedPercentage)
-    {
-        return CreateDonutSvg(width, height, approvedPercentage, rejectedPercentage, ApprovedColor, RejectedColor);
-    }
-
-    private static string CreateRejectRateDonutSvg(double width, double height, double rejectRate, double noRejectRate)
-    {
-        return CreateDonutSvg(width, height, noRejectRate, rejectRate, NoRejectColor, RejectRateColor);
-    }
-
-    private static string CreateDonutSvg(double width, double height, double firstPercentage, double secondPercentage, string firstColor, string secondColor)
-    {
-        firstPercentage = Math.Clamp(firstPercentage, 0.0, 100.0);
-        secondPercentage = Math.Clamp(secondPercentage, 0.0, 100.0);
-
-        double totalPercentage = firstPercentage + secondPercentage;
-        if (totalPercentage <= 0.0)
-        {
-            return string.Empty;
+            throw new DirectoryNotFoundException("Não foi possível localizar a pasta src para gerar o PDF.");
         }
 
-        double centerX = width / 2.0;
-        double centerY = height / 2.0;
-        double radius = Math.Min(width, height) / 2.0 - 10.0;
-        double circumference = 2.0 * Math.PI * radius;
-        double firstDashLength = (firstPercentage / 100.0) * circumference;
-        double secondDashLength = (secondPercentage / 100.0) * circumference;
+        string infrastructureProjectDirectory = Path.Combine(srcDirectory, "A2-Mahle-App.Infrastructure");
 
-        return $"""
-<svg xmlns="http://www.w3.org/2000/svg" width="{width:F0}" height="{height:F0}" viewBox="0 0 {width:F0} {height:F0}">
-    <circle cx="{centerX:F2}" cy="{centerY:F2}" r="{radius:F2}" fill="none" stroke="#E5E7EB" stroke-width="18" stroke-linecap="butt" />
-    <circle cx="{centerX:F2}" cy="{centerY:F2}" r="{radius:F2}" fill="none" stroke="{firstColor}" stroke-width="18" stroke-linecap="butt" stroke-dasharray="{firstDashLength:F2} {circumference:F2}" stroke-dashoffset="0" transform="rotate(-90 {centerX:F2} {centerY:F2})" />
-    <circle cx="{centerX:F2}" cy="{centerY:F2}" r="{radius:F2}" fill="none" stroke="{secondColor}" stroke-width="18" stroke-linecap="butt" stroke-dasharray="{secondDashLength:F2} {circumference:F2}" stroke-dashoffset="{circumference - firstDashLength:F2}" transform="rotate(-90 {centerX:F2} {centerY:F2})" />
-</svg>
-""";
-    }
-
-    private static string GetJudgmentText(InspectionStatus status)
-    {
-        return status switch
+        if (Directory.Exists(infrastructureProjectDirectory))
         {
-            InspectionStatus.Approved => "Aprovada",
-            InspectionStatus.Rejected => "Reprovada",
-            _ => "—"
-        };
-    }
+            return infrastructureProjectDirectory;
+        }
 
-    private static string GetCycleTimeText(int cycleTime)
-    {
-        return $"{cycleTime} ms";
-    }
-
-    private static IContainer HeaderCell(IContainer container)
-    {
-        return container.Background(Colors.Grey.Lighten3).BorderBottom(1).BorderColor(Colors.Grey.Lighten2).PaddingVertical(8).PaddingHorizontal(10);
-    }
-
-    private static IContainer DataCell(IContainer container)
-    {
-        return container.BorderBottom(0.5f).BorderColor(Colors.Grey.Lighten2).PaddingVertical(8).PaddingHorizontal(10);
+        throw new DirectoryNotFoundException("Não foi possível localizar o diretório do projeto Infrastructure para gerar o PDF.");
     }
 }
 

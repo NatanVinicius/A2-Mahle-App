@@ -192,27 +192,12 @@ public partial class HistoryPage
             _isExportingPdf = true;
             _errorMessage = null;
 
-            byte[]? reportImage = null;
+            StateHasChanged();
+            await Task.Yield();
 
-            if (_viewMode == HistoryViewMode.Production)
-            {
-                try
-                {
-                    string imageBase64 = await JSRuntime.InvokeAsync<string>(
-                        "captureElementAsBase64",
-                        "history-chart-export");
-
-                    if (!string.IsNullOrWhiteSpace(imageBase64) && imageBase64.Contains(","))
-                    {
-                        reportImage = Convert.FromBase64String(
-                            imageBase64.Split(",", 2)[1]);
-                    }
-                }
-                catch (JSException exception)
-                {
-                    Console.Error.WriteLine($"Error capturing chart image: {exception.Message}");
-                }
-            }
+            string exportHtml = await JSRuntime.InvokeAsync<string>(
+                "historyChart.getExportHtml",
+                "pdf-export-area");
 
             byte[] pdfBytes;
             string fileName;
@@ -222,9 +207,7 @@ public partial class HistoryPage
                 pdfBytes =
                     await HistoryExportPdfService
                         .ExportProductionsAsync(
-                            _productions.FirstOrDefault(),
-                            _selectedDate,
-                            reportImage);
+                            exportHtml);
 
                 fileName =
                     $"Historico_Producao_{_selectedDate:yyyy-MM-dd}.pdf";
@@ -234,9 +217,7 @@ public partial class HistoryPage
                 pdfBytes =
                     await HistoryExportPdfService
                         .ExportInspectionsAsync(
-                            _inspections,
-                            _selectedDate,
-                            reportImage);
+                            exportHtml);
 
                 fileName =
                     $"Historico_Inspecoes_{_selectedDate:yyyy-MM-dd}.pdf";
