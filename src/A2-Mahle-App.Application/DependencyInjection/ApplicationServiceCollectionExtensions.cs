@@ -14,6 +14,8 @@ public static class ApplicationServiceCollectionExtensions
     {
         services.AddSingleton<IPopupService, PopupService>();
         services.AddSingleton<ICommunicationTestService, CommunicationTestService>();
+        services.AddSingleton<ICommunicationEndpointSettingsStore, NoOpCommunicationEndpointSettingsStore>();
+        services.AddSingleton<ICommunicationEndpointSettingsService, CommunicationEndpointSettingsService>();
 
         services.AddSingleton<InspectionCorrelation>();
         services.AddSingleton<IInspectionService, InspectionService>();

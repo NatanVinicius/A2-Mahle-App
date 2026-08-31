@@ -3,6 +3,7 @@ using A2MahleApp.Application.Features.History.Services;
 using A2MahleApp.Application.Features.Inspection.Services;
 using A2MahleApp.Application.Features.Production.Services;
 using A2MahleApp.Infrastructure.Features.Export;
+using A2MahleApp.Infrastructure.Features.CommunicationTestPopup;
 using A2MahleApp.Infrastructure.Features.History.Repositories;
 using A2MahleApp.Infrastructure.Features.Inspection.Repositories;
 using A2MahleApp.Infrastructure.Features.Inspection.Services;
@@ -38,6 +39,7 @@ public static class InfrastructureServiceCollectionExtensions
         services.AddDbContextFactory<MahleDbContext>(options =>
             options.UseSqlite(connectionString));
 
+        services.AddSingleton<ICommunicationEndpointSettingsStore, FileCommunicationEndpointSettingsStore>();
         services.AddSingleton<IVisionSensorService, FakeVisionSensorService>();
         services.AddSingleton<IInspectionEvidenceStorage, InspectionEvidenceStorage>();
         services.AddSingleton<IProductionRepository, ProductionRepository>();

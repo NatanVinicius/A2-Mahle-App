@@ -17,6 +17,12 @@ public sealed class FakeVisionSensorService : IVisionSensorService
     private Task? _simulationTask;
     private int _inspectionsSinceConnect;
     private bool _simulatedDisconnectTriggered;
+    private readonly ICommunicationEndpointSettingsService _communicationEndpointSettingsService;
+
+    public FakeVisionSensorService(ICommunicationEndpointSettingsService communicationEndpointSettingsService)
+    {
+        _communicationEndpointSettingsService = communicationEndpointSettingsService;
+    }
 
     public ConnectionState ConnectionState { get; private set; } = ConnectionState.Disconnected;
 
@@ -30,6 +36,13 @@ public sealed class FakeVisionSensorService : IVisionSensorService
     {
         if (ConnectionState is ConnectionState.Connected or ConnectionState.Connecting)
         {
+            return;
+        }
+
+        string configuredIv4 = _communicationEndpointSettingsService.Current.IV4.Trim();
+        if (string.IsNullOrWhiteSpace(configuredIv4))
+        {
+            SetConnectionState(ConnectionState.Disconnected);
             return;
         }
 

@@ -195,23 +195,25 @@
         }
     </div>
 
-    <div class="mt-6 flex w-full shrink-0 justify-end">
-        <button type="button" @onclick="OnExportPdfClick"
-                disabled="@_isExportingPdf || @_viewMode == HistoryViewMode.Inspection"
-                class="rounded-lg border bg-red-500 px-8 py-2 font-semibold text-white cursor-pointer disabled:cursor-not-allowed disabled:opacity-80">
-            @if (_isExportingPdf)
-            {
-                <span class="inline-flex items-center gap-2">
-                    <span class="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white"></span>
-                    <span>Exportando...</span>
-                </span>
-            }
-            else
-            {
-                <span>Exportar PDF</span>
-            }
-        </button>
-    </div>
+    @if (_viewMode == HistoryViewMode.Production)
+    {
+        <div class="mt-6 flex w-full shrink-0 justify-end">
+            <button type="button" @onclick="OnExportPdfClick" disabled="@_isExportingPdf"
+                    class="rounded-lg border bg-red-500 px-8 py-2 font-semibold text-white cursor-pointer disabled:cursor-not-allowed disabled:opacity-80">
+                @if (_isExportingPdf)
+                {
+                    <span class="inline-flex items-center gap-2">
+                        <span class="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white"></span>
+                        <span>Exportando...</span>
+                    </span>
+                }
+                else
+                {
+                    <span>Exportar PDF</span>
+                }
+            </button>
+        </div>
+    }
 
     @if (!string.IsNullOrWhiteSpace(_errorMessage))
     {
