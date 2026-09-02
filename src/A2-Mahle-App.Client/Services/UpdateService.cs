@@ -22,7 +22,7 @@ public enum UpdateState
 
 public sealed class UpdateService
 {
-    private static readonly TimeSpan CheckTimeout = TimeSpan.FromSeconds(60);
+    private static readonly TimeSpan CheckTimeout = TimeSpan.FromSeconds(120);
     private static readonly TimeSpan MessageDisplayDuration = TimeSpan.FromSeconds(2);
 
     private readonly UpdateManager _updateManager;
@@ -224,7 +224,7 @@ public sealed class UpdateService
         {
             using HttpClient httpClient = new()
             {
-                Timeout = TimeSpan.FromSeconds(20)
+                Timeout = CheckTimeout
             };
 
             httpClient.DefaultRequestHeaders.UserAgent.Add(
