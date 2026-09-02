@@ -1,5 +1,6 @@
 @using A2MahleApp.Client.Services
 @inject UpdateService UpdateService
+@implements IDisposable
 
 @if (UpdateService.State is not UpdateState.Idle and not UpdateState.Offline)
 {
@@ -11,57 +12,56 @@
                 case UpdateState.Checking:
                     <h2 class="text-xl font-bold text-primary">Verificando atualização</h2>
                     <p class="mt-3 text-sm">Verificando se existe uma nova versão...</p>
-                    <p class="mt-2 text-xs text-gray-500">
-                        Estado atual: @UpdateService.State
-                    </p>
                     break;
 
-                case UpdateState.UpdateAvailable:
-                    <h2 class="text-xl font-bold text-primary">Nova versão disponível</h2>
-                    <p class="mt-3 text-sm">
-                        Versão atual: <strong>@UpdateService.CurrentVersion</strong>
-                    </p>
-                    <p class="text-sm">
-                        Nova versão: <strong>@UpdateService.NewVersion</strong>
-                    </p>
-                    <button class="mt-6 w-full rounded bg-primary px-4 py-3 text-sm font-bold text-white"
-                            @onclick="UpdateService.DownloadUpdateAsync">
-                        Baixar atualização
-                    </button>
+                case UpdateState.NoUpdate:
+                    <h2 class="text-xl font-bold text-primary">Aplicação atualizada</h2>
+                    <p class="mt-3 text-sm">Não existe uma nova versão disponível.</p>
                     break;
 
                 case UpdateState.Downloading:
-                    <h2 class="text-xl font-bold text-primary">Baixando atualização</h2>
-                    <p class="mt-3 text-sm">Versão: <strong>@UpdateService.NewVersion</strong></p>
-                    <p class="mt-2 text-sm">Progresso: <strong>@UpdateService.Progress%</strong></p>
-                    <progress class="mt-4 h-2 w-full" value="@UpdateService.Progress" max="100"></progress>
-                    break;
-
-                case UpdateState.Ready:
-                    <h2 class="text-xl font-bold text-primary">Atualização pronta</h2>
+                    <h2 class="text-xl font-bold text-primary">Atualizando aplicação</h2>
                     <p class="mt-3 text-sm">
-                        A versão <strong>@UpdateService.NewVersion</strong> está pronta para ser instalada.
+                        Nova versão: <strong>@UpdateService.NewVersion</strong>
                     </p>
-                    <button class="mt-6 w-full rounded bg-primary px-4 py-3 text-sm font-bold text-white"
-                            @onclick="UpdateService.InstallUpdate">
-                        Atualizar agora
-                    </button>
+                    <p class="mt-2 text-sm">
+                        Baixando atualização: <strong>@UpdateService.Progress%</strong>
+                    </p>
+                    <progress class="mt-4 h-2 w-full" value="@UpdateService.Progress" max="100"></progress>
                     break;
 
                 case UpdateState.Installing:
                     <h2 class="text-xl font-bold text-primary">Instalando atualização</h2>
-                    <p class="mt-3 text-sm">Aplicando a nova versão...</p>
+                    <p class="mt-3 text-sm">
+                        Aplicando a versão <strong>@UpdateService.NewVersion</strong>...
+                    </p>
                     break;
 
                 case UpdateState.Error:
-                    <h2 class="text-xl font-bold text-primary">Erro ao atualizar</h2>
-                    <p class="mt-3 break-words text-sm">@UpdateService.ErrorMessage</p>
-                    <button class="mt-6 w-full rounded bg-primary px-4 py-3 text-sm font-bold text-white"
-                            @onclick="UpdateService.CheckForUpdateAsync">
-                        Tentar novamente
-                    </button>
+                    <h2 class="text-xl font-bold text-primary">Não foi possível atualizar</h2>
+                    <p class="mt-3 wrap-break-word text-sm">
+                        @UpdateService.ErrorMessage
+                    </p>
                     break;
             }
         </div>
     </div>
+}
+
+@code {
+    protected override void OnInitialized()
+    {
+        UpdateService.StateChanged += OnStateChanged;
+        _ = UpdateService.CheckAndApplyUpdateAsync();
+    }
+
+    private void OnStateChanged(object? sender, EventArgs e)
+    {
+        _ = InvokeAsync(StateHasChanged);
+    }
+
+    public void Dispose()
+    {
+        UpdateService.StateChanged -= OnStateChanged;
+    }
 }

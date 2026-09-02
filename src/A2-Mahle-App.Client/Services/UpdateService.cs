@@ -7,9 +7,8 @@ public enum UpdateState
 {
     Idle,
     Checking,
-    UpdateAvailable,
+    NoUpdate,
     Downloading,
-    Ready,
     Installing,
     Offline,
     Error
@@ -18,9 +17,11 @@ public enum UpdateState
 public sealed class UpdateService
 {
     private static readonly TimeSpan CheckTimeout = TimeSpan.FromSeconds(10);
+    private static readonly TimeSpan MessageDisplayDuration = TimeSpan.FromSeconds(2);
 
     private readonly UpdateManager _updateManager;
     private UpdateInfo? _update;
+    private int _checkStarted;
 
     public UpdateService()
     {
@@ -45,22 +46,16 @@ public sealed class UpdateService
 
     public event EventHandler? StateChanged;
 
-    public async Task CheckForUpdateAsync()
+    public async Task CheckAndApplyUpdateAsync()
     {
-        State = UpdateState.Checking;
-        ErrorMessage = null;
-        NotifyStateChanged();
+        if (Interlocked.Exchange(ref _checkStarted, 1) != 0)
+            return;
 
-        DebugLog("Check iniciado.");
+        SetState(UpdateState.Checking);
 
         try
         {
-            DebugLog("Chamando CheckForUpdatesAsync().");
-
-            Task<UpdateInfo?> checkTask =
-                _updateManager.CheckForUpdatesAsync();
-
-            DebugLog("Task de CheckForUpdatesAsync criada.");
+            Task<UpdateInfo?> checkTask = _updateManager.CheckForUpdatesAsync();
 
             Task completedTask = await Task.WhenAny(
                 checkTask,
@@ -68,123 +63,78 @@ public sealed class UpdateService
 
             if (completedTask != checkTask)
             {
-                DebugLog("TIMEOUT: CheckForUpdatesAsync não terminou em 10 segundos.");
+                _ = ObserveFailedCheckAsync(checkTask);
 
-                State = UpdateState.Offline;
                 ErrorMessage = "Não foi possível verificar atualizações no tempo limite.";
-
-                NotifyStateChanged();
+                SetState(UpdateState.Offline);
                 return;
             }
-
-            DebugLog("CheckForUpdatesAsync terminou.");
 
             _update = await checkTask;
 
             if (_update is null)
             {
-                DebugLog("Nenhuma atualização encontrada.");
-
-                State = UpdateState.Idle;
-                NotifyStateChanged();
+                SetState(UpdateState.NoUpdate);
+                await Task.Delay(MessageDisplayDuration);
+                SetState(UpdateState.Idle);
                 return;
             }
 
             NewVersion = _update.TargetFullRelease.Version.ToString();
-
-            DebugLog($"Atualização encontrada: {NewVersion}.");
-
-            State = UpdateState.UpdateAvailable;
-        }
-        catch (HttpRequestException ex)
-        {
-            DebugLog($"HttpRequestException: {ex}");
-
-            ErrorMessage = ex.Message;
-            State = UpdateState.Offline;
-        }
-        catch (Exception ex)
-        {
-            DebugLog($"Exception: {ex}");
-
-            ErrorMessage = ex.Message;
-            State = UpdateState.Error;
-        }
-
-        NotifyStateChanged();
-    }
-    public async Task DownloadUpdateAsync()
-    {
-        if (_update is null)
-            return;
-
-        State = UpdateState.Downloading;
-        Progress = 0;
-        ErrorMessage = null;
-        NotifyStateChanged();
-
-        try
-        {
-            await _updateManager.DownloadUpdatesAsync(
-                _update,
-                progress =>
-                {
-                    Progress = progress;
-                    NotifyStateChanged();
-                });
-
-            State = UpdateState.Ready;
+            await DownloadAndApplyUpdateAsync(_update);
         }
         catch (HttpRequestException ex)
         {
             ErrorMessage = ex.Message;
-            State = UpdateState.Offline;
+            SetState(UpdateState.Offline);
         }
         catch (Exception ex)
         {
             ErrorMessage = ex.Message;
-            State = UpdateState.Error;
+            SetState(UpdateState.Error);
+            await Task.Delay(MessageDisplayDuration);
+            SetState(UpdateState.Idle);
         }
-
-        NotifyStateChanged();
     }
 
-    public void InstallUpdate()
+    private async Task DownloadAndApplyUpdateAsync(UpdateInfo update)
     {
-        if (_update is null)
-            return;
+        SetState(UpdateState.Downloading);
 
-        State = UpdateState.Installing;
-        NotifyStateChanged();
+        await _updateManager.DownloadUpdatesAsync(
+            update,
+            progress =>
+            {
+                Progress = progress;
+                NotifyStateChanged();
+            });
+
+        SetState(UpdateState.Installing);
 
         _updateManager.ApplyUpdatesAndRestart(
-            _update.TargetFullRelease);
+            update.TargetFullRelease);
+    }
+
+    private static async Task ObserveFailedCheckAsync(Task checkTask)
+    {
+        try
+        {
+            await checkTask;
+        }
+        catch
+        {
+            // The check already timed out; its eventual failure must not become unobserved.
+        }
+    }
+
+    private void SetState(UpdateState state)
+    {
+        State = state;
+        NotifyStateChanged();
     }
 
     private void NotifyStateChanged()
     {
         StateChanged?.Invoke(this, EventArgs.Empty);
-    }
-
-    private static void DebugLog(string message)
-    {
-        try
-        {
-            string directory = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                "A2-Mahle-App");
-
-            Directory.CreateDirectory(directory);
-
-            string path = Path.Combine(directory, "update-debug.log");
-
-            File.AppendAllText(
-                path,
-                $"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - {message}{Environment.NewLine}");
-        }
-        catch
-        {
-            // O log de diagnóstico nunca pode afetar a aplicação.
-        }
     }
 }
