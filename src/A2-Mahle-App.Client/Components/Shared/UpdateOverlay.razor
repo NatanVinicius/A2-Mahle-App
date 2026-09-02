@@ -2,7 +2,7 @@
 @inject UpdateService UpdateService
 @implements IDisposable
 
-@if (UpdateService.State is not UpdateState.Idle and not UpdateState.Offline)
+@if (UpdateService.State is not UpdateState.Idle)
 {
     <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-6">
         <div class="w-full max-w-md rounded-lg bg-white p-8 shadow-2xl">
@@ -39,6 +39,13 @@
 
                 case UpdateState.Error:
                     <h2 class="text-xl font-bold text-primary">Não foi possível atualizar</h2>
+                    <p class="mt-3 wrap-break-word text-sm">
+                        @UpdateService.ErrorMessage
+                    </p>
+                    break;
+
+                case UpdateState.Offline:
+                    <h2 class="text-xl font-bold text-primary">Sem conexão para atualizar</h2>
                     <p class="mt-3 wrap-break-word text-sm">
                         @UpdateService.ErrorMessage
                     </p>
