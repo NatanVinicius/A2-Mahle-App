@@ -31,8 +31,8 @@
         <ApplicationId>com.a2mahle.app</ApplicationId>
 
         <!-- Versions -->
-        <ApplicationDisplayVersion>1.0.9</ApplicationDisplayVersion>
-        <ApplicationVersion>10</ApplicationVersion>
+        <ApplicationDisplayVersion>1.1.0</ApplicationDisplayVersion>
+        <ApplicationVersion>11</ApplicationVersion>
 
         <!-- To develop, package, and publish an app to the Microsoft Store, see: https://aka.ms/MauiTemplateUnpackaged -->
         <WindowsPackageType>None</WindowsPackageType>
@@ -70,6 +70,9 @@
         <PackageReference Include="Microsoft.Maui.Controls" Version="$(MauiVersion)" />
         <PackageReference Include="Microsoft.AspNetCore.Components.WebView.Maui" Version="$(MauiVersion)" />
         <PackageReference Include="Microsoft.Extensions.Logging.Debug" Version="10.0.0" />
+        <PackageReference Include="Serilog" Version="4.0.1" />
+        <PackageReference Include="Serilog.Extensions.Logging" Version="8.0.0" />
+        <PackageReference Include="Serilog.Sinks.File" Version="6.0.0" />
         <PackageReference Include="Velopack" Version="1.2.0" />
     </ItemGroup>
 

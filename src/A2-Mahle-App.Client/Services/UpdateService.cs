@@ -1,3 +1,5 @@
+using System.Diagnostics;
+
 using Microsoft.Extensions.Logging;
 
 using Velopack;
@@ -18,7 +20,7 @@ public enum UpdateState
 
 public sealed class UpdateService
 {
-    private static readonly TimeSpan CheckTimeout = TimeSpan.FromSeconds(10);
+    private static readonly TimeSpan CheckTimeout = TimeSpan.FromSeconds(30);
     private static readonly TimeSpan MessageDisplayDuration = TimeSpan.FromSeconds(2);
 
     private readonly UpdateManager _updateManager;
@@ -63,7 +65,11 @@ public sealed class UpdateService
             return;
         }
 
-        _logger.LogInformation("Starting update check.");
+        Stopwatch stopwatch = Stopwatch.StartNew();
+        _logger.LogInformation(
+            "Starting update check. CurrentVersion={CurrentVersion}, TimeoutSeconds={TimeoutSeconds}",
+            CurrentVersion,
+            CheckTimeout.TotalSeconds);
         SetState(UpdateState.Checking);
 
         try
@@ -78,10 +84,12 @@ public sealed class UpdateService
             {
                 _ = ObserveFailedCheckAsync(checkTask);
 
-                ErrorMessage = "Não foi possível verificar atualizações no tempo limite.";
-                SetState(UpdateState.Offline);
+                ErrorMessage = "A verificação de atualizações excedeu o tempo limite. Tente novamente em instantes.";
+                SetState(UpdateState.Error);
+                stopwatch.Stop();
                 _logger.LogWarning(
-                    "Update check timed out after {TimeoutSeconds}s.",
+                    "Update check timed out. ElapsedMs={ElapsedMs}, TimeoutSeconds={TimeoutSeconds}",
+                    stopwatch.ElapsedMilliseconds,
                     CheckTimeout.TotalSeconds);
                 await Task.Delay(MessageDisplayDuration);
                 SetState(UpdateState.Idle);
@@ -89,6 +97,10 @@ public sealed class UpdateService
             }
 
             _update = await checkTask;
+            stopwatch.Stop();
+            _logger.LogInformation(
+                "Update check request completed. ElapsedMs={ElapsedMs}",
+                stopwatch.ElapsedMilliseconds);
 
             if (_update is null)
             {
@@ -108,8 +120,8 @@ public sealed class UpdateService
         }
         catch (HttpRequestException ex)
         {
-            ErrorMessage = ex.Message;
-            SetState(UpdateState.Error);
+            ErrorMessage = "Não foi possível acessar o servidor de atualização.";
+            SetState(UpdateState.Offline);
             _logger.LogWarning(ex, "Update check failed due to HTTP/network error.");
             await Task.Delay(MessageDisplayDuration);
             SetState(UpdateState.Idle);
@@ -126,6 +138,7 @@ public sealed class UpdateService
 
     private async Task DownloadAndApplyUpdateAsync(UpdateInfo update)
     {
+        Stopwatch downloadStopwatch = Stopwatch.StartNew();
         _logger.LogInformation(
             "Starting update download for version {NewVersion}.",
             update.TargetFullRelease.Version.ToString());
@@ -141,14 +154,20 @@ public sealed class UpdateService
                 {
                     _logger.LogInformation("Update download progress: {ProgressPercent}%.", progress);
                 }
+                else
+                {
+                    _logger.LogDebug("Update download progress tick: {ProgressPercent}%.", progress);
+                }
 
                 NotifyStateChanged();
             });
 
         SetState(UpdateState.Installing);
+        downloadStopwatch.Stop();
         _logger.LogInformation(
-            "Update downloaded successfully. Applying version {NewVersion} and restarting app.",
-            update.TargetFullRelease.Version.ToString());
+            "Update downloaded successfully. NewVersion={NewVersion}, ElapsedMs={ElapsedMs}. Applying and restarting app.",
+            update.TargetFullRelease.Version.ToString(),
+            downloadStopwatch.ElapsedMilliseconds);
 
         _updateManager.ApplyUpdatesAndRestart(
             update.TargetFullRelease);
@@ -170,6 +189,11 @@ public sealed class UpdateService
 
     private void SetState(UpdateState state)
     {
+        if (State != state)
+        {
+            _logger.LogInformation("Update state transition: {FromState} -> {ToState}", State, state);
+        }
+
         State = state;
         NotifyStateChanged();
     }
