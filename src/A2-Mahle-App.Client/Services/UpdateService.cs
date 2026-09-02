@@ -87,6 +87,7 @@ public sealed class UpdateService
         catch (HttpRequestException ex)
         {
             ErrorMessage = ex.Message;
+            await Task.Delay(MessageDisplayDuration);
             SetState(UpdateState.Offline);
         }
         catch (Exception ex)
