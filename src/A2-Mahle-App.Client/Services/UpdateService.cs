@@ -88,7 +88,7 @@ public sealed class UpdateService
         {
             ErrorMessage = ex.Message;
             await Task.Delay(MessageDisplayDuration);
-            SetState(UpdateState.Offline);
+            SetState(UpdateState.Error);
         }
         catch (Exception ex)
         {
