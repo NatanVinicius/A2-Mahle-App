@@ -1,0 +1,86 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.x'
+          cache: npm
+          cache-dependency-path: src/A2-Mahle-App.Client/package-lock.json
+
+      - name: Install Node dependencies
+        shell: pwsh
+        working-directory: .\src\A2-Mahle-App.Client
+        run: npm ci
+
+      - name: Publish Windows
+        shell: pwsh
+        run: |
+          dotnet publish ".\src\A2-Mahle-App.Client\A2-Mahle-App.Client.csproj" `
+            -c Release `
+            -f net10.0-windows10.0.19041.0 `
+            -p:RuntimeIdentifierOverride=win-x64 `
+            -p:WindowsPackageType=None `
+            -p:WindowsAppSDKSelfContained=true `
+            --self-contained true `
+            -o ".\publish"
+
+      - name: Install Velopack CLI
+        shell: pwsh
+        run: dotnet tool install -g vpk --version 1.2.0
+
+      - name: Download previous Velopack release
+        shell: pwsh
+        run: |
+          vpk download github `
+            --repoUrl "https://github.com/${{ github.repository }}" `
+            --outputDir ".\Releases"
+
+      - name: Pack Velopack release
+        shell: pwsh
+        run: |
+          $version = "${{ github.ref_name }}".TrimStart("v")
+
+          vpk pack `
+            --packId "A2-Mahle-App" `
+            --packVersion "$version" `
+            --packDir ".\publish" `
+            --mainExe "A2-Mahle-App.Client.exe" `
+            --packTitle "A2-Mahle-App" `
+            --outputDir ".\Releases"
+
+      - name: Upload GitHub Release
+        shell: pwsh
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $version = "${{ github.ref_name }}".TrimStart("v")
+
+          vpk upload github `
+            --outputDir ".\Releases" `
+            --repoUrl "https://github.com/${{ github.repository }}" `
+            --publish `
+            --merge `
+            --releaseName "A2-Mahle-App $version" `
+            --tag "${{ github.ref_name }}" `
+            --token "$env:GITHUB_TOKEN"

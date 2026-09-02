@@ -1,7 +1,11 @@
 @using A2MahleApp.Client.Components.Layout.Header
 @using A2MahleApp.Client.Components.Layout.NavMenu
 @using A2MahleApp.Client.Components.Layout.Statistics
+@using A2MahleApp.Client.Components.Shared
 @using A2MahleApp.Client.Components.Shared.ComunicationTestPopup
+@using A2MahleApp.Client.Services
+@inject UpdateService UpdateService
+@implements IDisposable
 @inherits LayoutComponentBase
 
 <div class="flex flex-col h-screen overflow-hidden bg-background">
@@ -27,4 +31,24 @@
 
     <ComunicationTestPopup />
 
+    <UpdateOverlay />
+
 </div>
+
+@code {
+    protected override async Task OnInitializedAsync()
+    {
+        UpdateService.StateChanged += OnUpdateStateChanged;
+        await UpdateService.CheckForUpdateAsync();
+    }
+
+    private void OnUpdateStateChanged(object? sender, EventArgs e)
+    {
+        _ = InvokeAsync(StateHasChanged);
+    }
+
+    public void Dispose()
+    {
+        UpdateService.StateChanged -= OnUpdateStateChanged;
+    }
+}
