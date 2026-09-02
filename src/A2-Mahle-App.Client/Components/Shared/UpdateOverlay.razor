@@ -11,6 +11,9 @@
                 case UpdateState.Checking:
                     <h2 class="text-xl font-bold text-primary">Verificando atualização</h2>
                     <p class="mt-3 text-sm">Verificando se existe uma nova versão...</p>
+                    <p class="mt-2 text-xs text-gray-500">
+                        Estado atual: @UpdateService.State
+                    </p>
                     break;
 
                 case UpdateState.UpdateAvailable:
