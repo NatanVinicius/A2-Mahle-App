@@ -17,6 +17,8 @@ public enum UpdateState
 
 public sealed class UpdateService
 {
+    private static readonly TimeSpan CheckTimeout = TimeSpan.FromSeconds(10);
+
     private readonly UpdateManager _updateManager;
     private UpdateInfo? _update;
 
@@ -51,7 +53,22 @@ public sealed class UpdateService
 
         try
         {
-            _update = await _updateManager.CheckForUpdatesAsync();
+            Task<UpdateInfo?> checkTask =
+                _updateManager.CheckForUpdatesAsync();
+
+            Task completedTask = await Task.WhenAny(
+                checkTask,
+                Task.Delay(CheckTimeout));
+
+            if (completedTask != checkTask)
+            {
+                State = UpdateState.Offline;
+                ErrorMessage = "Não foi possível verificar atualizações no tempo limite.";
+                NotifyStateChanged();
+                return;
+            }
+
+            _update = await checkTask;
 
             if (_update is null)
             {

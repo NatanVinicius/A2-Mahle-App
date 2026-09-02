@@ -36,10 +36,13 @@
 </div>
 
 @code {
-    protected override async Task OnInitializedAsync()
+    protected override Task OnInitializedAsync()
     {
         UpdateService.StateChanged += OnUpdateStateChanged;
-        await UpdateService.CheckForUpdateAsync();
+
+        _ = UpdateService.CheckForUpdateAsync();
+
+        return Task.CompletedTask;
     }
 
     private void OnUpdateStateChanged(object? sender, EventArgs e)
