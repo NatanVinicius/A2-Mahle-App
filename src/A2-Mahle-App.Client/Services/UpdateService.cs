@@ -66,6 +66,7 @@ public sealed class UpdateService
                 _ = ObserveFailedCheckAsync(checkTask);
 
                 ErrorMessage = "Não foi possível verificar atualizações no tempo limite.";
+                await Task.Delay(MessageDisplayDuration);
                 SetState(UpdateState.Offline);
                 return;
             }
