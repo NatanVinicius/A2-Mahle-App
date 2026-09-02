@@ -51,10 +51,16 @@ public sealed class UpdateService
         ErrorMessage = null;
         NotifyStateChanged();
 
+        DebugLog("Check iniciado.");
+
         try
         {
+            DebugLog("Chamando CheckForUpdatesAsync().");
+
             Task<UpdateInfo?> checkTask =
                 _updateManager.CheckForUpdatesAsync();
+
+            DebugLog("Task de CheckForUpdatesAsync criada.");
 
             Task completedTask = await Task.WhenAny(
                 checkTask,
@@ -62,38 +68,51 @@ public sealed class UpdateService
 
             if (completedTask != checkTask)
             {
+                DebugLog("TIMEOUT: CheckForUpdatesAsync não terminou em 10 segundos.");
+
                 State = UpdateState.Offline;
                 ErrorMessage = "Não foi possível verificar atualizações no tempo limite.";
+
                 NotifyStateChanged();
                 return;
             }
+
+            DebugLog("CheckForUpdatesAsync terminou.");
 
             _update = await checkTask;
 
             if (_update is null)
             {
+                DebugLog("Nenhuma atualização encontrada.");
+
                 State = UpdateState.Idle;
                 NotifyStateChanged();
                 return;
             }
 
             NewVersion = _update.TargetFullRelease.Version.ToString();
+
+            DebugLog($"Atualização encontrada: {NewVersion}.");
+
             State = UpdateState.UpdateAvailable;
         }
         catch (HttpRequestException ex)
         {
+            DebugLog($"HttpRequestException: {ex}");
+
             ErrorMessage = ex.Message;
             State = UpdateState.Offline;
         }
         catch (Exception ex)
         {
+            DebugLog($"Exception: {ex}");
+
             ErrorMessage = ex.Message;
             State = UpdateState.Error;
         }
 
         NotifyStateChanged();
     }
-
     public async Task DownloadUpdateAsync()
     {
         if (_update is null)
@@ -145,5 +164,27 @@ public sealed class UpdateService
     private void NotifyStateChanged()
     {
         StateChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    private static void DebugLog(string message)
+    {
+        try
+        {
+            string directory = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                "A2-Mahle-App");
+
+            Directory.CreateDirectory(directory);
+
+            string path = Path.Combine(directory, "update-debug.log");
+
+            File.AppendAllText(
+                path,
+                $"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - {message}{Environment.NewLine}");
+        }
+        catch
+        {
+            // O log de diagnóstico nunca pode afetar a aplicação.
+        }
     }
 }
