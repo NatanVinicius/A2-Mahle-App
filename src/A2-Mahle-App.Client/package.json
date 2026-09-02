@@ -14,5 +14,9 @@
   "devDependencies": {
     "@tailwindcss/cli": "^4.3.3",
     "tailwindcss": "^4.3.3"
+  },
+  "dependencies": {
+    "apexcharts": "^7.0.0",
+    "puppeteer": "^24.17.1"
   }
 }

@@ -2,9 +2,14 @@ using System.Reflection;
 
 using A2MahleApp.Application.DependencyInjection;
 using A2MahleApp.Infrastructure.DependencyInjection;
+using A2MahleApp.Application.Features.Export;
+using A2MahleApp.Client.WinUI.Services;
+using A2MahleApp.Client.Services;
 
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+
+using Serilog;
 
 namespace A2MahleApp.Client;
 
@@ -13,6 +18,7 @@ public static class MauiProgram
     public static MauiApp CreateMauiApp()
     {
         var builder = MauiApp.CreateBuilder();
+        ConfigureSerilog(builder);
 
         builder
             .UseMauiApp<App>()
@@ -31,10 +37,14 @@ public static class MauiProgram
             builder.Configuration.GetSection("CommunicationTest"));
 
         builder.Services.AddMauiBlazorWebView();
+        builder.Services.AddSingleton<UpdateService>();
+
+#if WINDOWS
+        builder.Services.AddSingleton<IPdfFileSaver, PdfFileSaver>();
+#endif
 
 #if DEBUG
         builder.Services.AddBlazorWebViewDeveloperTools();
-        builder.Logging.AddDebug();
 #endif
 
         return builder.Build();
@@ -63,5 +73,34 @@ public static class MauiProgram
             .Build();
 
         builder.Configuration.AddConfiguration(configuration);
+    }
+
+    private static void ConfigureSerilog(MauiAppBuilder builder)
+    {
+        string logDirectory = ResolveLogDirectory();
+        Directory.CreateDirectory(logDirectory);
+
+        string logPath = Path.Combine(logDirectory, "log-.txt");
+
+        Log.Logger = new LoggerConfiguration()
+            .MinimumLevel.Debug()
+            .MinimumLevel.Override("Microsoft", Serilog.Events.LogEventLevel.Warning)
+            .Enrich.FromLogContext()
+            .WriteTo.File(
+                path: logPath,
+                rollingInterval: RollingInterval.Day,
+                retainedFileCountLimit: 30,
+                shared: true,
+                outputTemplate:
+                    "{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz} [{Level:u3}] {SourceContext} {Message:lj}{NewLine}{Exception}")
+            .CreateLogger();
+
+        builder.Logging.ClearProviders();
+        builder.Logging.AddSerilog(Log.Logger, dispose: true);
+    }
+
+    private static string ResolveLogDirectory()
+    {
+        return Path.Combine(AppContext.BaseDirectory, "Logs");
     }
 };
