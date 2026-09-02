@@ -1,6 +1,4 @@
 using System.Diagnostics;
-using System.Net.Http.Headers;
-using System.Text.Json;
 
 using Microsoft.Extensions.Logging;
 
@@ -22,7 +20,6 @@ public enum UpdateState
 
 public sealed class UpdateService
 {
-    private static readonly TimeSpan CheckTimeout = TimeSpan.FromSeconds(120);
     private static readonly TimeSpan MessageDisplayDuration = TimeSpan.FromSeconds(2);
 
     private readonly UpdateManager _updateManager;
@@ -69,37 +66,13 @@ public sealed class UpdateService
 
         Stopwatch stopwatch = Stopwatch.StartNew();
         _logger.LogInformation(
-            "Starting update check. CurrentVersion={CurrentVersion}, TimeoutSeconds={TimeoutSeconds}",
-            CurrentVersion,
-            CheckTimeout.TotalSeconds);
+            "Starting update check. CurrentVersion={CurrentVersion}",
+            CurrentVersion);
         SetState(UpdateState.Checking);
 
         try
         {
-            Task<UpdateInfo?> checkTask = _updateManager.CheckForUpdatesAsync();
-
-            Task completedTask = await Task.WhenAny(
-                checkTask,
-                Task.Delay(CheckTimeout));
-
-            if (completedTask != checkTask)
-            {
-                _ = ObserveTimedOutCheckCompletionAsync(checkTask, stopwatch.ElapsedMilliseconds);
-                _ = ProbeUpdateEndpointsAsync();
-
-                ErrorMessage = "A verificação está demorando mais que o esperado e continuará em segundo plano.";
-                SetState(UpdateState.Error);
-                stopwatch.Stop();
-                _logger.LogWarning(
-                    "Update check timed out. ElapsedMs={ElapsedMs}, TimeoutSeconds={TimeoutSeconds}",
-                    stopwatch.ElapsedMilliseconds,
-                    CheckTimeout.TotalSeconds);
-                await Task.Delay(MessageDisplayDuration);
-                SetState(UpdateState.Idle);
-                return;
-            }
-
-            _update = await checkTask;
+            _update = await _updateManager.CheckForUpdatesAsync();
             stopwatch.Stop();
             _logger.LogInformation(
                 "Update check request completed. ElapsedMs={ElapsedMs}",
@@ -174,135 +147,6 @@ public sealed class UpdateService
 
         _updateManager.ApplyUpdatesAndRestart(
             update.TargetFullRelease);
-    }
-
-    private async Task ObserveTimedOutCheckCompletionAsync(Task<UpdateInfo?> checkTask, long timeoutElapsedMs)
-    {
-        Stopwatch tailStopwatch = Stopwatch.StartNew();
-
-        try
-        {
-            UpdateInfo? lateResult = await checkTask;
-            tailStopwatch.Stop();
-            long totalElapsedMs = timeoutElapsedMs + tailStopwatch.ElapsedMilliseconds;
-
-            if (lateResult is null)
-            {
-                _logger.LogWarning(
-                    "Timed-out update check eventually completed with NO update. InitialTimeoutElapsedMs={TimeoutElapsedMs}, AdditionalElapsedMs={AdditionalElapsedMs}, TotalElapsedMs={TotalElapsedMs}",
-                    timeoutElapsedMs,
-                    tailStopwatch.ElapsedMilliseconds,
-                    totalElapsedMs);
-                return;
-            }
-
-            NewVersion = lateResult.TargetFullRelease.Version.ToString();
-            _logger.LogWarning(
-                "Timed-out update check eventually completed with update available. InitialTimeoutElapsedMs={TimeoutElapsedMs}, AdditionalElapsedMs={AdditionalElapsedMs}, TotalElapsedMs={TotalElapsedMs}, NewVersion={NewVersion}",
-                timeoutElapsedMs,
-                tailStopwatch.ElapsedMilliseconds,
-                totalElapsedMs,
-                NewVersion);
-
-            await DownloadAndApplyUpdateAsync(lateResult);
-        }
-        catch (Exception ex)
-        {
-            tailStopwatch.Stop();
-            _logger.LogDebug(
-                ex,
-                "Timed-out update check eventually failed. InitialTimeoutElapsedMs={TimeoutElapsedMs}, AdditionalElapsedMs={AdditionalElapsedMs}, TotalElapsedMs={TotalElapsedMs}",
-                timeoutElapsedMs,
-                tailStopwatch.ElapsedMilliseconds,
-                timeoutElapsedMs + tailStopwatch.ElapsedMilliseconds);
-        }
-    }
-
-    private async Task ProbeUpdateEndpointsAsync()
-    {
-        try
-        {
-            using HttpClient httpClient = new()
-            {
-                Timeout = CheckTimeout
-            };
-
-            httpClient.DefaultRequestHeaders.UserAgent.Add(
-                new ProductInfoHeaderValue("A2MahleApp", CurrentVersion));
-
-            const string latestReleaseApiUrl =
-                "https://api.github.com/repos/NatanVinicius/A2-Mahle-App/releases/latest";
-
-            Stopwatch latestApiStopwatch = Stopwatch.StartNew();
-            HttpResponseMessage latestResponse = await httpClient.GetAsync(latestReleaseApiUrl);
-            latestApiStopwatch.Stop();
-
-            _logger.LogWarning(
-                "Update endpoint probe: releases/latest status={StatusCode} elapsedMs={ElapsedMs}",
-                (int)latestResponse.StatusCode,
-                latestApiStopwatch.ElapsedMilliseconds);
-
-            latestResponse.EnsureSuccessStatusCode();
-
-            await using Stream latestStream = await latestResponse.Content.ReadAsStreamAsync();
-            using JsonDocument latestJson = await JsonDocument.ParseAsync(latestStream);
-
-            string? releasesWinJsonUrl = null;
-            string? releasesFileUrl = null;
-
-            foreach (JsonElement asset in latestJson.RootElement.GetProperty("assets").EnumerateArray())
-            {
-                string? assetName = asset.GetProperty("name").GetString();
-                string? assetUrl = asset.GetProperty("browser_download_url").GetString();
-
-                if (string.Equals(assetName, "releases.win.json", StringComparison.OrdinalIgnoreCase))
-                {
-                    releasesWinJsonUrl = assetUrl;
-                }
-
-                if (string.Equals(assetName, "RELEASES", StringComparison.OrdinalIgnoreCase))
-                {
-                    releasesFileUrl = assetUrl;
-                }
-            }
-
-            if (!string.IsNullOrWhiteSpace(releasesWinJsonUrl))
-            {
-                await ProbeSingleEndpointAsync(httpClient, "releases.win.json", releasesWinJsonUrl);
-            }
-            else
-            {
-                _logger.LogWarning("Update endpoint probe: releases.win.json asset not found in latest release.");
-            }
-
-            if (!string.IsNullOrWhiteSpace(releasesFileUrl))
-            {
-                await ProbeSingleEndpointAsync(httpClient, "RELEASES", releasesFileUrl);
-            }
-            else
-            {
-                _logger.LogWarning("Update endpoint probe: RELEASES asset not found in latest release.");
-            }
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "Update endpoint probe failed.");
-        }
-    }
-
-    private async Task ProbeSingleEndpointAsync(HttpClient httpClient, string assetName, string url)
-    {
-        Stopwatch stopwatch = Stopwatch.StartNew();
-        using HttpResponseMessage response = await httpClient.GetAsync(url);
-        string body = await response.Content.ReadAsStringAsync();
-        stopwatch.Stop();
-
-        _logger.LogWarning(
-            "Update endpoint probe: asset={AssetName} status={StatusCode} elapsedMs={ElapsedMs} contentLength={ContentLength}",
-            assetName,
-            (int)response.StatusCode,
-            stopwatch.ElapsedMilliseconds,
-            body.Length);
     }
 
     private void SetState(UpdateState state)
