@@ -82,7 +82,7 @@ public sealed class UpdateService
 
             if (completedTask != checkTask)
             {
-                _ = ObserveFailedCheckAsync(checkTask);
+                _ = ObserveTimedOutCheckCompletionAsync(checkTask, stopwatch.ElapsedMilliseconds);
 
                 ErrorMessage = "A verificação de atualizações excedeu o tempo limite. Tente novamente em instantes.";
                 SetState(UpdateState.Error);
@@ -173,17 +173,38 @@ public sealed class UpdateService
             update.TargetFullRelease);
     }
 
-    private async Task ObserveFailedCheckAsync(Task checkTask)
+    private async Task ObserveTimedOutCheckCompletionAsync(Task<UpdateInfo?> checkTask, long timeoutElapsedMs)
     {
+        Stopwatch tailStopwatch = Stopwatch.StartNew();
+
         try
         {
-            await checkTask;
+            UpdateInfo? lateResult = await checkTask;
+            tailStopwatch.Stop();
+
+            if (lateResult is null)
+            {
+                _logger.LogWarning(
+                    "Timed-out update check eventually completed with NO update. InitialTimeoutElapsedMs={TimeoutElapsedMs}, AdditionalElapsedMs={AdditionalElapsedMs}",
+                    timeoutElapsedMs,
+                    tailStopwatch.ElapsedMilliseconds);
+                return;
+            }
+
+            _logger.LogWarning(
+                "Timed-out update check eventually completed with update available. InitialTimeoutElapsedMs={TimeoutElapsedMs}, AdditionalElapsedMs={AdditionalElapsedMs}, NewVersion={NewVersion}",
+                timeoutElapsedMs,
+                tailStopwatch.ElapsedMilliseconds,
+                lateResult.TargetFullRelease.Version.ToString());
         }
         catch (Exception ex)
         {
+            tailStopwatch.Stop();
             _logger.LogDebug(
                 ex,
-                "Update check completed with failure after timeout; failure observed to avoid unobserved task exceptions.");
+                "Timed-out update check eventually failed. InitialTimeoutElapsedMs={TimeoutElapsedMs}, AdditionalElapsedMs={AdditionalElapsedMs}",
+                timeoutElapsedMs,
+                tailStopwatch.ElapsedMilliseconds);
         }
     }
 
