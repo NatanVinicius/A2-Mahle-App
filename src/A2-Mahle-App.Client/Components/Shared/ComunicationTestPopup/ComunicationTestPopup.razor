@@ -29,57 +29,80 @@
 
 			</div>
 
-			<!-- IV4 -->
-			<div class="mb-6">
+			<div class="flex p-4 gap-4 bg-primary/40 border rounded-md border-primary items-center justify-start">
+				<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+					 stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+					 class="lucide lucide-info-icon lucide-info text-primary">
+					<circle cx="12" cy="12" r="10" />
+					<path d="M12 16v-4" />
+					<path d="M12 8h.01" />
+				</svg>
+				<p class="text-sm text-black">
+					Configure e teste as conexões da câmera.
+				</p>
+			</div>
 
-				<h3 class="mb-4 text-base font-semibold text-secondary">
+			<!-- IV4 -->
+			<div class="mt-4">
+				<h3 class="text-base font-semibold text-secondary">
 					IV4
 				</h3>
-
 				<div class="flex flex-col gap-3">
-					<div class="flex items-center justify-between rounded-lg bg-white/5 px-4 py-3">
-
-						<span class="text-sm @GetIconType(IV4IsConnected)">
-							IP: @ComunicationTestServiceModel.Value.IV4
-						</span>
-
+					<div class="flex flex-col gap-2 rounded-lg bg-white/5 px-2 py-2">
+						<label for="iv4-ip" class="text-xs font-medium text-secondary ">IP</label>
+						<input id="iv4-ip" @bind="IV4Input" type="text" placeholder="Ex: 192.168.0.30"
+							   class="w-full rounded-md border-b shadow-md border-primary bg-background px-3 py-2 text-sm outline-0" />
+						<span class="text-sm @GetIconType(IV4IsConnected)">Status: @(IV4IsConnected is null ? "Não testado" : IV4IsConnected.Value ? "Conectado" : "Sem conexão")</span>
 					</div>
 				</div>
 
 			</div>
 
-			<div class="mb-6">
+			<div class="mt-4">
 
-				<h3 class="mb-4 text-base font-semibold text-secondary">
+				<h3 class="text-base font-semibold text-secondary">
 					HOST
 				</h3>
 
 				<div class="flex flex-col gap-3">
-					<div class="flex items-center justify-between rounded-lg bg-white/5 px-4 py-3">
-
-						<span class="text-sm @GetIconType(HostIsConnected)">
-							IP: @ComunicationTestServiceModel.Value.Host
-						</span>
-
+					<div class="flex flex-col gap-2 rounded-lg bg-white/5 px-2 py-2">
+						<label for="host-ip" class="text-xs font-medium text-secondary">IP</label>
+						<input id="host-ip" @bind="HostInput" type="text" placeholder="Ex: 192.168.0.35"
+							   class="w-full rounded-md border-b shadow-md border-primary bg-background px-3 py-2 text-sm outline-0" />
+						<span class="text-sm @GetIconType(HostIsConnected)">Status: @(HostIsConnected is null ? "Não testado" : HostIsConnected.Value ? "Conectado" : "Sem conexão")</span>
 					</div>
 				</div>
 
 			</div>
-
-			<!-- Test button -->
-			<div class="flex justify-end">
-				<button type="button" disabled="@IsLoading" @onclick="TestConnections"
-						class="flex h-11 w-40 cursor-pointer items-center justify-center gap-3 rounded-lg bg-primary font-semibold transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60">
+			<div class="px-2 py-4 text-sm text-secondary h-16 flex items-center justify-start">
+				@if (!string.IsNullOrWhiteSpace(FeedbackMessage))
+				{
+					<span>@FeedbackMessage</span>
+				}
+			</div>
+			<div class="flex mt-4 justify-end gap-3">
+				<button type="button" disabled="@(IsLoading || IsSaving)" @onclick="TestConnections"
+						class="flex h-11 w-40 cursor-pointer items-center justify-center gap-3 rounded-lg border border-primary font-semibold transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60">
 
 					<div class="flex h-4 w-4 items-center justify-center transition-all duration-150"
 						 style="opacity:@(IsLoading ? "1" : "0"); margin-right:@(IsLoading ? "8px" : "-16px")">
 
 						<div
-							class="h-4 w-4 animate-spin rounded-full border-2 border-dotted border-white border-t-transparent">
+							class="h-4 w-4 animate-spin rounded-full border-2 border-dotted border-primary border-t-transparent">
 						</div>
 
 					</div>
-					<span class="mr-3 text-white">Testar</span>
+					<span class="mr-3 text-primary">Testar</span>
+				</button>
+
+				<button type="button" disabled="@(IsLoading || IsSaving)" @onclick="SaveSettingsAsync"
+						class="flex h-11 w-40 cursor-pointer items-center justify-center gap-3 rounded-lg bg-green-600 font-semibold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60">
+					@if (IsSaving)
+					{
+						<div class="h-4 w-4 animate-spin rounded-full border-2 border-dotted border-white border-t-transparent">
+						</div>
+					}
+					<span>Salvar</span>
 				</button>
 			</div>
 		</div>
