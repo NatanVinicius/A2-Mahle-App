@@ -149,7 +149,7 @@ window.historyChart = {
       chart: {
         type: "donut",
         width: 320,
-        height: 260,
+        height: 250,
 
         animations: {
           enabled: true,
@@ -333,7 +333,7 @@ window.historyChart = {
       chart: {
         type: "donut",
         width: 320,
-        height: 260,
+        height: 250,
 
         animations: {
           enabled: true,

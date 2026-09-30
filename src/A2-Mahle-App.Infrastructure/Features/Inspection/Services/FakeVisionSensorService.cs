@@ -56,7 +56,6 @@ public sealed class FakeVisionSensorService : IVisionSensorService
         _simulatedDisconnectTriggered = false;
 
         SetConnectionState(ConnectionState.Connected);
-        StartSimulation();
     }
 
     public async Task DisconnectAsync()

@@ -9,10 +9,12 @@ public sealed class ProductionService : IProductionService, IDisposable
 {
     private readonly IProductionRepository _repository;
     private readonly IInspectionService _inspectionService;
-    private readonly SemaphoreSlim _saveLock = new(1, 1);
+    private readonly SemaphoreSlim _stateLock = new(1, 1);
+    private readonly System.Threading.Timer _dayChangeTimer;
     private bool _initialized;
+    private bool _disposed;
 
-    public ProductionAlias CurrentProduction { get; private set; } = CreateEmptyProduction();
+    public ProductionAlias CurrentProduction { get; private set; } = CreateEmptyProduction(DateTime.Today);
 
     public event EventHandler<ProductionAlias>? ProductionChanged;
 
@@ -23,63 +25,160 @@ public sealed class ProductionService : IProductionService, IDisposable
         _repository = repository;
         _inspectionService = inspectionService;
         _inspectionService.InspectionCompleted += OnInspectionCompleted;
+        _dayChangeTimer = new System.Threading.Timer(
+            OnDayChangeTimerElapsed,
+            state: null,
+            dueTime: Timeout.InfiniteTimeSpan,
+            period: Timeout.InfiniteTimeSpan);
     }
 
     public async Task InitializeAsync(CancellationToken cancellationToken = default)
     {
-        if (_initialized)
+        await _stateLock.WaitAsync(cancellationToken);
+        try
         {
-            return;
+            if (_initialized)
+            {
+                return;
+            }
+
+            CurrentProduction = await GetOrCreateProductionAsync(DateTime.Today, cancellationToken);
+            _initialized = true;
+            ScheduleNextDayChange();
+        }
+        finally
+        {
+            _stateLock.Release();
         }
 
-        DateTime today = DateTime.Today;
-        ProductionAlias? production = await _repository.GetByDateAsync(today, cancellationToken);
-
-        CurrentProduction = production ?? CreateEmptyProduction();
-
-        if (production is null)
-        {
-            await _repository.SaveAsync(CurrentProduction, cancellationToken);
-        }
-
-        _initialized = true;
         ProductionChanged?.Invoke(this, CurrentProduction);
     }
 
     private async void OnInspectionCompleted(object? sender, Domain.Features.Inspection.Entities.Inspection inspection)
     {
-        if (!_initialized)
+        if (!_initialized || _disposed)
         {
             return;
         }
 
-        CurrentProduction.Produced++;
+        bool currentProductionChanged = false;
+        ProductionAlias production;
 
-        if (inspection.Status == InspectionStatus.Approved)
-        {
-            CurrentProduction.Approved++;
-        }
-        else
-        {
-            CurrentProduction.Rejected++;
-        }
-
-        ProductionChanged?.Invoke(this, CurrentProduction);
-
-        await _saveLock.WaitAsync();
+        await _stateLock.WaitAsync();
         try
         {
-            await _repository.SaveAsync(CurrentProduction);
+            DateTime inspectionDate = inspection.DateTime.Date;
+
+            if (inspectionDate > CurrentProduction.Date.Date)
+            {
+                CurrentProduction = await GetOrCreateProductionAsync(inspectionDate);
+                currentProductionChanged = true;
+            }
+
+            production = inspectionDate == CurrentProduction.Date.Date
+                ? CurrentProduction
+                : await GetOrCreateProductionAsync(inspectionDate);
+
+            production.Produced++;
+
+            if (inspection.Status == InspectionStatus.Approved)
+            {
+                production.Approved++;
+            }
+            else
+            {
+                production.Rejected++;
+            }
+
+            await _repository.SaveAsync(production);
         }
         finally
         {
-            _saveLock.Release();
+            _stateLock.Release();
+        }
+
+        if (currentProductionChanged || production.Date.Date == CurrentProduction.Date.Date)
+        {
+            ProductionChanged?.Invoke(this, CurrentProduction);
         }
     }
 
-    private static ProductionAlias CreateEmptyProduction() => new()
+    private async void OnDayChangeTimerElapsed(object? state)
     {
-        Date = DateTime.Today,
+        if (_disposed)
+        {
+            return;
+        }
+
+        bool currentProductionChanged = false;
+
+        try
+        {
+            await _stateLock.WaitAsync();
+            try
+            {
+                if (!_initialized)
+                {
+                    return;
+                }
+
+                DateTime today = DateTime.Today;
+                if (CurrentProduction.Date.Date != today)
+                {
+                    CurrentProduction = await GetOrCreateProductionAsync(today);
+                    currentProductionChanged = true;
+                }
+            }
+            finally
+            {
+                _stateLock.Release();
+            }
+        }
+        catch (ObjectDisposedException) when (_disposed)
+        {
+            return;
+        }
+        finally
+        {
+            ScheduleNextDayChange();
+        }
+
+        if (currentProductionChanged)
+        {
+            ProductionChanged?.Invoke(this, CurrentProduction);
+        }
+    }
+
+    private async Task<ProductionAlias> GetOrCreateProductionAsync(
+        DateTime date,
+        CancellationToken cancellationToken = default)
+    {
+        ProductionAlias? production = await _repository.GetByDateAsync(date, cancellationToken);
+        if (production is not null)
+        {
+            return production;
+        }
+
+        ProductionAlias newProduction = CreateEmptyProduction(date);
+        await _repository.SaveAsync(newProduction, cancellationToken);
+        return newProduction;
+    }
+
+    private void ScheduleNextDayChange()
+    {
+        if (_disposed)
+        {
+            return;
+        }
+
+        DateTime now = DateTime.Now;
+        DateTime nextDay = now.Date.AddDays(1);
+        _dayChangeTimer.Change(nextDay - now, Timeout.InfiniteTimeSpan);
+    }
+
+    private static ProductionAlias CreateEmptyProduction(DateTime date) => new()
+    {
+        Date = date.Date,
         Produced = 0,
         Approved = 0,
         Rejected = 0
@@ -87,7 +186,9 @@ public sealed class ProductionService : IProductionService, IDisposable
 
     public void Dispose()
     {
+        _disposed = true;
         _inspectionService.InspectionCompleted -= OnInspectionCompleted;
-        _saveLock.Dispose();
+        _dayChangeTimer.Dispose();
+        _stateLock.Dispose();
     }
 }

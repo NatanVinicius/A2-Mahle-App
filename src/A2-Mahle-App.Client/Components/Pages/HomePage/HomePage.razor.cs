@@ -7,7 +7,7 @@ namespace A2MahleApp.Client.Components.Pages.HomePage;
 
 public partial class HomePage : IDisposable
 {
-    private string _imageSource = "Assets/Images/testimage.bmp";
+    private string? _imageSource;
 
     [Inject]
     private IInspectionService InspectionService { get; set; } = null!;

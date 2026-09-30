@@ -7,7 +7,6 @@ namespace A2MahleApp.Infrastructure.Features.Export;
 
 public sealed class HistoryPdfExportService : IHistoryExportPdfService
 {
-    private const string ClientProjectFileName = "A2-Mahle-App.Client.csproj";
     private static readonly string PuppeteerScriptRelativePath = Path.Combine("PdfExport", "render-history-pdf.cjs");
     private static readonly string AppStylesheetRelativePath = Path.Combine("wwwroot", "app.css");
     private static readonly string LogoRelativePath = Path.Combine("Features", "Export", "Assets", "mahle-logo.jpg");
@@ -36,12 +35,11 @@ public sealed class HistoryPdfExportService : IHistoryExportPdfService
             throw new ArgumentException("O conteúdo HTML do relatório não pode ser vazio.", nameof(htmlContent));
         }
 
-        string clientProjectDirectory = GetClientProjectDirectory();
-        string stylesheetPath = Path.Combine(clientProjectDirectory, AppStylesheetRelativePath);
-        string puppeteerScriptPath = Path.Combine(clientProjectDirectory, PuppeteerScriptRelativePath);
-        string puppeteerPackageDirectory = Path.Combine(clientProjectDirectory, "node_modules", "puppeteer");
-        string infrastructureProjectDirectory = GetInfrastructureProjectDirectory(clientProjectDirectory);
-        string logoPath = Path.Combine(infrastructureProjectDirectory, LogoRelativePath);
+        string applicationDirectory = AppContext.BaseDirectory;
+        string stylesheetPath = Path.Combine(applicationDirectory, AppStylesheetRelativePath);
+        string puppeteerScriptPath = Path.Combine(applicationDirectory, PuppeteerScriptRelativePath);
+        string puppeteerPackageDirectory = Path.Combine(applicationDirectory, "node_modules", "puppeteer");
+        string logoPath = Path.Combine(applicationDirectory, LogoRelativePath);
 
         if (!File.Exists(stylesheetPath))
         {
@@ -78,7 +76,7 @@ public sealed class HistoryPdfExportService : IHistoryExportPdfService
             {
                 FileName = "node",
                 Arguments = $"\"{puppeteerScriptPath}\" \"{inputHtmlPath}\" \"{outputPdfPath}\"",
-                WorkingDirectory = clientProjectDirectory,
+                WorkingDirectory = applicationDirectory,
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
                 UseShellExecute = false,
@@ -330,40 +328,4 @@ public sealed class HistoryPdfExportService : IHistoryExportPdfService
                  """;
     }
 
-    private static string GetClientProjectDirectory()
-    {
-        DirectoryInfo? currentDirectory = new(AppContext.BaseDirectory);
-
-        while (currentDirectory is not null)
-        {
-            string projectFilePath = Path.Combine(currentDirectory.FullName, ClientProjectFileName);
-            if (File.Exists(projectFilePath))
-            {
-                return currentDirectory.FullName;
-            }
-
-            currentDirectory = currentDirectory.Parent;
-        }
-
-        throw new DirectoryNotFoundException("Não foi possível localizar o diretório do projeto Client para gerar o PDF.");
-    }
-
-    private static string GetInfrastructureProjectDirectory(string clientProjectDirectory)
-    {
-        string? srcDirectory = Directory.GetParent(clientProjectDirectory)?.FullName;
-        if (string.IsNullOrWhiteSpace(srcDirectory))
-        {
-            throw new DirectoryNotFoundException("Não foi possível localizar a pasta src para gerar o PDF.");
-        }
-
-        string infrastructureProjectDirectory = Path.Combine(srcDirectory, "A2-Mahle-App.Infrastructure");
-
-        if (Directory.Exists(infrastructureProjectDirectory))
-        {
-            return infrastructureProjectDirectory;
-        }
-
-        throw new DirectoryNotFoundException("Não foi possível localizar o diretório do projeto Infrastructure para gerar o PDF.");
-    }
 }
-

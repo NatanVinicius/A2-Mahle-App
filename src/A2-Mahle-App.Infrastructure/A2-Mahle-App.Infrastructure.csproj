@@ -23,4 +23,18 @@
     <EmbeddedResource Include="FakeData\testimage.bmp" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Update="Features\Export\Assets\mahle-logo.jpg">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </None>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="Keyence.IV4.Sdk">
+      <HintPath>lib\Keyence.IV4.Sdk.dll</HintPath>
+    </Reference>
+    <None Include="lib\Keyence.IV4.Sdk.Lib.dll" Link="Keyence.IV4.Sdk.Lib.dll" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>

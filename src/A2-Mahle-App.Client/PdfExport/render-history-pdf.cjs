@@ -10,6 +10,7 @@ async function main() {
     }
 
     const browser = await puppeteer.launch({
+        channel: "chrome",
         headless: true,
         args: ["--allow-file-access-from-files"]
     });

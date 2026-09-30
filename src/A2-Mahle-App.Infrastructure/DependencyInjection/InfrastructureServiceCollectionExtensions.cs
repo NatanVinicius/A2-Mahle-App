@@ -40,7 +40,7 @@ public static class InfrastructureServiceCollectionExtensions
             options.UseSqlite(connectionString));
 
         services.AddSingleton<ICommunicationEndpointSettingsStore, FileCommunicationEndpointSettingsStore>();
-        services.AddSingleton<IVisionSensorService, FakeVisionSensorService>();
+        services.AddSingleton<IVisionSensorService, KeyenceVisionSensorService>();
         services.AddSingleton<IInspectionEvidenceStorage, InspectionEvidenceStorage>();
         services.AddSingleton<IProductionRepository, ProductionRepository>();
         services.AddSingleton<IInspectionRepository, InspectionRepository>();

@@ -4,7 +4,6 @@ using A2MahleApp.Application.DependencyInjection;
 using A2MahleApp.Infrastructure.DependencyInjection;
 using A2MahleApp.Application.Features.Export;
 using A2MahleApp.Client.WinUI.Services;
-using A2MahleApp.Client.Services;
 
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
@@ -37,8 +36,6 @@ public static class MauiProgram
             builder.Configuration.GetSection("CommunicationTest"));
 
         builder.Services.AddMauiBlazorWebView();
-        builder.Services.AddSingleton<UpdateService>();
-
 #if WINDOWS
         builder.Services.AddSingleton<IPdfFileSaver, PdfFileSaver>();
 #endif

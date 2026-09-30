@@ -31,7 +31,7 @@ public partial class App : Microsoft.Maui.Controls.Application
 
         Window window = new(new MainPage())
         {
-            Title = "A2 Gestamp App"
+            Title = "A2 Mahle App"
         };
 
 #if WINDOWS
